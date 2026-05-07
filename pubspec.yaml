@@ -87,11 +87,6 @@ flutter:
   assets:
     - assets/brand/
     - assets/nav_icons/
-    - ../../../.cursor/projects/c-Users-ALIJOn-Desktop-grass/assets/c__Users_ALIJOn_AppData_Roaming_Cursor_User_workspaceStorage_2fe39877c3b08e21fdf73bf27ec00d1f_images_home_1-f2786b02-a4fa-4b42-90ec-e73c3629271b.png
-    - ../../../.cursor/projects/c-Users-ALIJOn-Desktop-grass/assets/c__Users_ALIJOn_AppData_Roaming_Cursor_User_workspaceStorage_2fe39877c3b08e21fdf73bf27ec00d1f_images_katalog-399e3fe9-a0ff-4286-a06d-55f12f746b89.png
-    - ../../../.cursor/projects/c-Users-ALIJOn-Desktop-grass/assets/c__Users_ALIJOn_AppData_Roaming_Cursor_User_workspaceStorage_2fe39877c3b08e21fdf73bf27ec00d1f_images_cart-fe3bfe16-71f4-4c87-ace7-6e60f96d1742.png
-    - ../../../.cursor/projects/c-Users-ALIJOn-Desktop-grass/assets/c__Users_ALIJOn_AppData_Roaming_Cursor_User_workspaceStorage_2fe39877c3b08e21fdf73bf27ec00d1f_images_mlm-b877aad6-1882-4aa8-8b32-a59436523daf.png
-    - ../../../.cursor/projects/c-Users-ALIJOn-Desktop-grass/assets/c__Users_ALIJOn_AppData_Roaming_Cursor_User_workspaceStorage_2fe39877c3b08e21fdf73bf27ec00d1f_images_profile-9bbf9f12-69db-43b8-ae72-a6b62005958d.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
