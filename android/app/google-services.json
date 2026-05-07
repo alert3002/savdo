@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "44307118657",
+    "project_id": "savdoapp-fae74",
+    "storage_bucket": "savdoapp-fae74.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:44307118657:android:c9fce60d000b765a5224c0",
+        "android_client_info": {
+          "package_name": "com.grass.grass_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDamyuUrrNfLu6COstA6vS-yTXGJrHXXp4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
