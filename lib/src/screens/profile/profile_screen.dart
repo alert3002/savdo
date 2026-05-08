@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/api_client.dart';
 import '../../brand/brand_assets.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 import '../../features/auth/sms_login_form.dart';
@@ -136,8 +139,129 @@ class ProfileScreen extends ConsumerWidget {
                 }
               },
             ),
+            const SizedBox(height: 16),
+            _DestructiveTile(
+              title: 'Удалить аккаунт',
+              subtitle: 'Безвозвратно: данные профиля и вход по этому номеру',
+              onTap: () => _confirmDeleteAccount(context, ref),
+            ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+String _apiErrorMessage(Object error) {
+  if (error is ApiException) {
+    try {
+      final decoded = jsonDecode(error.body);
+      if (decoded is Map<String, dynamic>) {
+        final d = decoded['detail'];
+        if (d is String && d.isNotEmpty) return d;
+      }
+    } catch (_) {}
+    if (error.body.trim().isNotEmpty) return error.body.trim();
+  }
+  return error.toString();
+}
+
+Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final scheme = Theme.of(context).colorScheme;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Удалить аккаунт?'),
+      content: const Text(
+        'Аккаунт будет закрыт: личные данные и номер телефона удалятся с сервера, '
+        'войти снова с этим номером можно будет только как с новым пользователем. '
+        'История заказов в системе может сохраняться без персональных данных.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Отмена'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          style: TextButton.styleFrom(foregroundColor: scheme.error),
+          child: const Text('Удалить'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+
+  try {
+    await ref.read(authControllerProvider.notifier).deleteAccount();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Аккаунт удалён')),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_apiErrorMessage(e))),
+      );
+    }
+  }
+}
+
+class _DestructiveTile extends StatelessWidget {
+  const _DestructiveTile({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final error = scheme.error;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: error.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.delete_forever_outlined, color: error),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: error,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: scheme.onSurface.withValues(alpha: 0.35)),
+          ],
+        ),
       ),
     );
   }

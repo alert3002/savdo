@@ -37,6 +37,13 @@ class AuthController extends Notifier<AuthState> {
     state = const AuthState();
   }
 
+  Future<void> deleteAccount() async {
+    final t = state.accessToken;
+    if (t == null || t.isEmpty) return;
+    await _repo.deleteAccount(bearer: t);
+    state = const AuthState();
+  }
+
   Future<void> refreshProfile() async {
     final t = state.accessToken;
     if (t == null || t.isEmpty) return;

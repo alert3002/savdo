@@ -154,6 +154,16 @@ class AuthRepository {
 
   Future<void> logout() => clearTokens();
 
+  /// Закрытие аккаунта на сервере и очистка локальных токенов (App Store 5.1.1(v)).
+  Future<void> deleteAccount({required String bearer}) async {
+    await _api.postJson(
+      '/api/v1/users/delete-account/',
+      bearerToken: bearer,
+      body: const <String, dynamic>{},
+    );
+    await clearTokens();
+  }
+
   Future<void> registerPushToken({
     required String bearer,
     required String token,
