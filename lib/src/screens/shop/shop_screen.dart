@@ -6,10 +6,13 @@ import 'dart:async';
 import '../../brand/brand_assets.dart';
 import '../../features/categories/categories_controller.dart';
 import '../../features/categories/category_item.dart';
+import '../../features/products/product_summary.dart';
 import '../../features/products/products_controller.dart';
 import '../../features/products/product_grid_card.dart';
 import '../../features/search/product_search_sheet.dart';
+import '../../features/slider/slider_controller.dart';
 import '../../routing/app_routes.dart';
+import '../../ui/error_retry.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 import '../../ui/skeleton.dart';
 
@@ -21,9 +24,16 @@ class ShopScreen extends ConsumerStatefulWidget {
 }
 
 class _ShopScreenState extends ConsumerState<ShopScreen> {
+  static const _pageSize = 20;
+
   bool _isLoading = true;
-  int _visibleCount = 10;
   Timer? _loadingTimer;
+  List<ProductSummary> _items = [];
+  int _page = 1;
+  bool _hasMore = true;
+  bool _productsLoading = true;
+  bool _loadingMore = false;
+  Object? _productsError;
 
   @override
   void initState() {
@@ -32,6 +42,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
     });
+    _loadFirstPage();
   }
 
   @override
@@ -40,8 +51,72 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     super.dispose();
   }
 
-  void _loadMore() {
-    setState(() => _visibleCount += 10);
+  Future<void> _reloadProducts() async {
+    setState(() {
+      _items = [];
+      _page = 1;
+      _hasMore = true;
+      _productsLoading = true;
+      _loadingMore = false;
+      _productsError = null;
+    });
+    await _loadFirstPage();
+  }
+
+  Future<void> _loadFirstPage() async {
+    final filter = ref.read(productsFilterProvider);
+    try {
+      final repo = ref.read(productsRepositoryProvider);
+      final result = await repo.fetchProductsPage(
+        page: 1,
+        pageSize: _pageSize,
+        categorySlug: filter.categorySlug,
+        ordering: filter.ordering,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items = result.items;
+        _page = 1;
+        _hasMore = result.hasNext;
+        _productsLoading = false;
+        _productsError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _productsLoading = false;
+        _productsError = e;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (!_hasMore || _loadingMore || _productsLoading) return;
+    setState(() => _loadingMore = true);
+    final filter = ref.read(productsFilterProvider);
+    try {
+      final repo = ref.read(productsRepositoryProvider);
+      final nextPage = _page + 1;
+      final result = await repo.fetchProductsPage(
+        page: nextPage,
+        pageSize: _pageSize,
+        categorySlug: filter.categorySlug,
+        ordering: filter.ordering,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page = nextPage;
+        _items = [..._items, ...result.items];
+        _hasMore = result.hasNext;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось загрузить: $e')),
+      );
+    }
   }
 
   Future<void> _openFilters() async {
@@ -52,11 +127,18 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       builder: (context) => const _ProductsFilterSheet(),
     );
     if (!mounted) return;
-    ref.invalidate(productsListProvider(_visibleCount));
+    await _reloadProducts();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(productsFilterProvider, (prev, next) {
+      if (prev == null) return;
+      if (prev.categorySlug != next.categorySlug || prev.ordering != next.ordering) {
+        _reloadProducts();
+      }
+    });
+
     final isLoading = _isLoading;
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
@@ -120,13 +202,27 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            isLoading ? const _ShopSkeletonGrid() : _ProductsGrid(pageSize: _visibleCount),
+            if (_productsError != null && !_productsLoading)
+              ErrorRetryPanel(
+                message: friendlyErrorMessage(_productsError!),
+                onRetry: _reloadProducts,
+              )
+            else if (isLoading || _productsLoading)
+              const _ShopSkeletonGrid()
+            else
+              _ProductsGrid(items: _items),
             const SizedBox(height: 14),
-            if (!isLoading)
+            if (!isLoading && !_productsLoading && _productsError == null && _hasMore)
               Center(
                 child: FilledButton.tonal(
-                  onPressed: _loadMore,
-                  child: const Text('Загрузить ещё'),
+                  onPressed: _loadingMore ? null : _loadMore,
+                  child: _loadingMore
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Загрузить ещё'),
                 ),
               ),
             const SizedBox(height: 18),
@@ -138,32 +234,32 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   }
 }
 
-class _ProductsGrid extends ConsumerWidget {
-  const _ProductsGrid({required this.pageSize});
-  final int pageSize;
+class _ProductsGrid extends StatelessWidget {
+  const _ProductsGrid({required this.items});
+  final List<ProductSummary> items;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncItems = ref.watch(productsListProvider(pageSize));
-    return asyncItems.when(
-      data: (items) => GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: items.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          // a bit taller to avoid overflow on small screens
-          childAspectRatio: 0.66,
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'Нет товаров',
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
-        itemBuilder: (context, index) => ProductGridCard(item: items[index]),
+      );
+    }
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 0.58,
       ),
-      loading: () => const _ShopSkeletonGrid(),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text('Ошибка: $e'),
-      ),
+      itemBuilder: (context, index) => ProductGridCard(item: items[index]),
     );
   }
 }
@@ -206,11 +302,12 @@ class _CategoryGridBody extends StatelessWidget {
         crossAxisCount: 3,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 0.92,
+        childAspectRatio: 0.68,
       ),
       itemBuilder: (context, index) {
         final c = items[index];
         final imageUrl = c.imageUrl;
+        final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
         return InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -224,41 +321,58 @@ class _CategoryGridBody extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.18),
+              color: scheme.surfaceContainerLow,
               border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.22),
-                width: 0.8,
+                color: scheme.outline.withValues(alpha: 0.42),
+                width: 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(17),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (imageUrl != null && imageUrl.isNotEmpty)
+                  if (hasImage)
                     Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) =>
-                          const SizedBox.shrink(),
+                          _HomeCategoryPlaceholder(scheme: scheme),
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
-                        return const ColoredBox(color: Colors.transparent);
+                        return ColoredBox(
+                          color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                        );
                       },
-                    ),
-                  // Dark overlay for readability + "wow".
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.05),
-                          Colors.black.withValues(alpha: 0.55),
-                        ],
+                    )
+                  else
+                    _HomeCategoryPlaceholder(scheme: scheme),
+                  if (hasImage)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 48,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0),
+                              Colors.black.withValues(alpha: 0.6),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                   Padding(
                     padding: const EdgeInsets.all(10),
                     child: Align(
@@ -269,8 +383,14 @@ class _CategoryGridBody extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w900,
-                          color: scheme.onSurface,
+                          color: hasImage ? Colors.white : scheme.onSurface,
                           height: 1.05,
+                          fontSize: 12,
+                          shadows: hasImage
+                              ? const [
+                                  Shadow(blurRadius: 5, color: Colors.black45),
+                                ]
+                              : null,
                         ),
                       ),
                     ),
@@ -281,6 +401,25 @@ class _CategoryGridBody extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _HomeCategoryPlaceholder extends StatelessWidget {
+  const _HomeCategoryPlaceholder({required this.scheme});
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+      child: Center(
+        child: Icon(
+          Icons.category_outlined,
+          size: 30,
+          color: scheme.primary.withValues(alpha: 0.55),
+        ),
+      ),
     );
   }
 }
@@ -299,7 +438,7 @@ class _CategorySkeleton extends StatelessWidget {
         crossAxisCount: 3,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 0.92,
+        childAspectRatio: 0.68,
       ),
       itemBuilder: (context, index) {
         return ClipRRect(
@@ -453,17 +592,29 @@ class _MotivationCard extends StatelessWidget {
   }
 }
 
-class _PromoSlider extends StatefulWidget {
+class _PromoSlider extends ConsumerStatefulWidget {
   const _PromoSlider();
 
   @override
-  State<_PromoSlider> createState() => _PromoSliderState();
+  ConsumerState<_PromoSlider> createState() => _PromoSliderState();
 }
 
-class _PromoSliderState extends State<_PromoSlider> {
+class _PromoSliderState extends ConsumerState<_PromoSlider> {
   final PageController _controller = PageController(viewportFraction: 0.92);
   int _index = 0;
   Timer? _autoTimer;
+  int _slideCount = 1;
+
+  static const _fallback = [
+    _PromoData(
+      title: 'Savdo.tech — покупки, которым доверяют',
+      subtitle: 'Профессиональная автохимия и бытовая химия.',
+    ),
+    _PromoData(
+      title: 'Стань партнёром и развивайся',
+      subtitle: 'MLM-система, бонусы и рост команды.',
+    ),
+  ];
 
   @override
   void initState() {
@@ -473,10 +624,11 @@ class _PromoSliderState extends State<_PromoSlider> {
 
   void _startAuto() {
     _autoTimer?.cancel();
+    if (_slideCount < 2) return;
     _autoTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted) return;
       if (!_controller.hasClients) return;
-      final next = (_index + 1) % 3;
+      final next = (_index + 1) % _slideCount;
       _controller.animateToPage(
         next,
         duration: const Duration(milliseconds: 420),
@@ -505,87 +657,124 @@ class _PromoSliderState extends State<_PromoSlider> {
     final watermarkLogo =
         isDark ? BrandAssets.logoWhiteHorizontal : BrandAssets.logoBlackHorizontal;
 
-    final items = const [
-      _PromoData(
-        title: 'Savdo.tech — покупки, которым доверяют',
-        subtitle: 'Профессиональная автохимия и бытовая химия.',
-      ),
-      _PromoData(
-        title: 'Стань партнёром и развивайся',
-        subtitle: 'MLM-система, бонусы и рост команды.',
-      ),
-      _PromoData(
-        title: 'Быстрая доставка и удобный заказ',
-        subtitle: 'Выбирай товары и оформляй заказы за минуту.',
-      ),
-    ];
+    final asyncSlides = ref.watch(sliderItemsProvider);
 
+    return asyncSlides.when(
+      data: (apiItems) {
+        final useApi = apiItems.isNotEmpty;
+        final count = useApi ? apiItems.length : _fallback.length;
+        if (_slideCount != count) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _slideCount = count);
+              _startAuto();
+            }
+          });
+        }
+        return _buildSlider(
+          context,
+          scheme: scheme,
+          textTheme: textTheme,
+          watermarkLogo: watermarkLogo,
+          count: count,
+          itemBuilder: (i) {
+            if (useApi) {
+              final s = apiItems[i];
+              return _PromoData(
+                title: s.title,
+                subtitle: s.description,
+                imageUrl: s.imageUrl,
+              );
+            }
+            return _fallback[i];
+          },
+        );
+      },
+      loading: () => _buildSlider(
+        context,
+        scheme: scheme,
+        textTheme: textTheme,
+        watermarkLogo: watermarkLogo,
+        count: _fallback.length,
+        itemBuilder: (i) => _fallback[i],
+      ),
+      error: (Object e, StackTrace st) => _buildSlider(
+        context,
+        scheme: scheme,
+        textTheme: textTheme,
+        watermarkLogo: watermarkLogo,
+        count: _fallback.length,
+        itemBuilder: (i) => _fallback[i],
+      ),
+    );
+  }
+
+  Widget _buildSlider(
+    BuildContext context, {
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required String watermarkLogo,
+    required int count,
+    required _PromoData Function(int index) itemBuilder,
+  }) {
     return Column(
       children: [
         SizedBox(
           height: 156,
           child: PageView.builder(
             controller: _controller,
-            itemCount: items.length,
+            itemCount: count,
             onPageChanged: _onPageChanged,
             itemBuilder: (context, i) {
-              final item = items[i];
+              final item = itemBuilder(i);
               return Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
-                  onTap: () {
-                    // Later: open promo/category/link.
-                  },
-                  child: Material(
-                    color: Colors.transparent,
-                    elevation: 0,
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: scheme.shadow.withValues(alpha: 0.55),
-                            blurRadius: 26,
-                            spreadRadius: 2,
-                            offset: const Offset(0, 14),
-                          ),
-                        ],
-                        border: Border.all(
-                          color: scheme.primary.withValues(alpha: 0.80),
-                          width: 2.2,
-                        ),
+                child: Material(
+                  color: Colors.transparent,
+                  elevation: 0,
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.22),
+                      border: Border.all(
+                        color: scheme.primary.withValues(alpha: 0.80),
+                        width: 2.2,
                       ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
                       child: Stack(
                         children: [
-                          // Subtle inner overlay to separate from page background.
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    scheme.surface.withValues(alpha: 0.08),
-                                    scheme.primary.withValues(alpha: 0.14),
-                                    scheme.secondary.withValues(alpha: 0.08),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(18),
+                          if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                            Positioned.fill(
+                              child: Image.network(
+                                item.imageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const SizedBox.shrink(),
                               ),
-                            ),
-                          ),
-                          // "Image" background (watermark logo) instead of icon.
-                          Positioned.fill(
-                            child: Opacity(
-                              opacity: 0.14,
-                              child: Transform.scale(
-                                scale: 1.15,
+                            )
+                          else
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: 0.14,
                                 child: Image.asset(
                                   watermarkLogo,
                                   fit: BoxFit.cover,
                                   alignment: Alignment.centerRight,
+                                ),
+                              ),
+                            ),
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    scheme.surface.withValues(alpha: 0.88),
+                                    scheme.surface.withValues(alpha: 0.35),
+                                  ],
                                 ),
                               ),
                             ),
@@ -598,34 +787,24 @@ class _PromoSliderState extends State<_PromoSlider> {
                               children: [
                                 Text(
                                   item.title,
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  item.subtitle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    fontSize: 11,
-                                    color: scheme.onSurface.withValues(alpha: 0.72),
-                                    height: 1.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                FilledButton.tonal(
-                                  onPressed: () {},
-                                  style: FilledButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
+                                if (item.subtitle.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    item.subtitle,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.bodySmall?.copyWith(
+                                      fontSize: 11,
+                                      color: scheme.onSurface.withValues(alpha: 0.72),
                                     ),
                                   ),
-                                  child: const Text('Купить'),
-                                ),
+                                ],
                               ],
                             ),
                           ),
@@ -641,7 +820,7 @@ class _PromoSliderState extends State<_PromoSlider> {
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(items.length, (i) {
+          children: List.generate(count, (i) {
             final selected = i == _index;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 180),
@@ -666,10 +845,12 @@ class _PromoData {
   const _PromoData({
     required this.title,
     required this.subtitle,
+    this.imageUrl,
   });
 
   final String title;
   final String subtitle;
+  final String? imageUrl;
 }
 
 class _ShopSkeletonGrid extends StatelessWidget {
@@ -683,9 +864,9 @@ class _ShopSkeletonGrid extends StatelessWidget {
       itemCount: 8,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.72,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 0.58,
       ),
       itemBuilder: (context, index) {
         return const _ShopSkeletonCard();
@@ -713,7 +894,7 @@ class _ShopSkeletonCard extends StatelessWidget {
           children: [
             const SkeletonBox(
               width: double.infinity,
-              height: 120,
+              height: 168,
               borderRadius: BorderRadius.zero,
             ),
             Padding(

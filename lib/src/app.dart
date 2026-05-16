@@ -5,11 +5,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'features/auth/auth_controller.dart';
 import 'features/settings/app_settings.dart';
 import 'routing/app_router.dart';
+import 'services/push_navigation.dart';
 import 'theme/grass_theme.dart';
 
 class GrassApp extends ConsumerStatefulWidget {
@@ -28,7 +28,6 @@ class _GrassAppState extends ConsumerState<GrassApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(authControllerProvider.notifier).restoreSession();
       _initPushNotifications();
     });
   }
@@ -42,11 +41,29 @@ class _GrassAppState extends ConsumerState<GrassApp> {
       provisional: false,
     );
 
+    final initial = await messaging.getInitialMessage();
+    if (initial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        handleRemoteMessageNavigation(rootNavigatorKey, initial);
+      });
+    }
+
     _onMessageSub ??= FirebaseMessaging.onMessage.listen((message) {
-      debugPrint('FCM foreground message: ${message.messageId}');
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) return;
+      if (!ctx.mounted) return;
+      showForegroundPushBanner(
+        ctx,
+        message,
+        onTap: () {
+          if (!ctx.mounted) return;
+          ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
+          navigateFromPushData(ctx, message.data);
+        },
+      );
     });
     _onMessageOpenedSub ??= FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('FCM opened from notification: ${message.messageId}');
+      handleRemoteMessageNavigation(rootNavigatorKey, message);
     });
     _onTokenRefreshSub ??= messaging.onTokenRefresh.listen((token) async {
       final bearer = ref.read(authControllerProvider).accessToken;
@@ -79,7 +96,7 @@ class _GrassAppState extends ConsumerState<GrassApp> {
 
   @override
   Widget build(BuildContext context) {
-    final GoRouter router = createAppRouter();
+    final router = ref.watch(appRouterProvider);
     final mode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
@@ -102,4 +119,3 @@ class _GrassAppState extends ConsumerState<GrassApp> {
     );
   }
 }
-

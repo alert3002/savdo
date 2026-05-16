@@ -9,6 +9,18 @@ import '../../features/auth/sms_login_form.dart';
 import '../../config/app_config.dart';
 import '../../routing/app_routes.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
+import '../../features/mlm/mlm_repository.dart';
+import '../../features/search/product_search_controller.dart' show apiClientProvider;
+
+final mlmRepositoryProvider = Provider<MlmRepository>(
+  (ref) => MlmRepository(ref.watch(apiClientProvider)),
+);
+
+final mlmThresholdsProvider = FutureProvider<List<StatusThresholdItem>>((ref) async {
+  final bearer = ref.watch(authControllerProvider).accessToken;
+  if (bearer == null || bearer.isEmpty) return const [];
+  return ref.watch(mlmRepositoryProvider).fetchThresholds(bearer: bearer);
+});
 
 class MlmScreen extends ConsumerWidget {
   const MlmScreen({super.key});
@@ -220,8 +232,41 @@ class MlmScreen extends ConsumerWidget {
               Icons.chevron_right,
               color: scheme.onSurface.withValues(alpha: 0.7),
             ),
-            onTap: () => context.push(AppRoutes.profileWallet),
+            onTap: () => context.push(AppRoutes.mlmBonuses),
           ),
+          const SizedBox(height: 12),
+          Text(
+            'Пороги статусов',
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          ref.watch(mlmThresholdsProvider).when(
+                data: (thresholds) {
+                  if (thresholds.isEmpty) {
+                    return Text(
+                      'Нет данных о порогах',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.65),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final t in thresholds)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _InfoCard(
+                            title: t.status,
+                            value: 'Личный: ${t.minPersonal} TJS\nКомандный: ${t.minTeam} TJS',
+                            icon: Icons.military_tech_outlined,
+                          ),
+                        ),
+                    ],
+                  );
+                },
+                loading: () => const LinearProgressIndicator(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
         ],
       ),
     );

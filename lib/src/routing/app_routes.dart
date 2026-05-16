@@ -23,6 +23,7 @@ class AppRoutes {
   static const String cart = '/home/cart';
   static const String mlm = '/home/mlm';
   static const String mlmTeamTree = '/home/mlm/tree';
+  static const String mlmBonuses = '/home/mlm/bonuses';
   static const String profile = '/home/profile';
   static const String profileMyData = '/home/profile/my-data';
   static const String profileMyOrders = '/home/profile/my-orders';

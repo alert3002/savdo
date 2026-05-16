@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../ui/error_retry.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 import '../../features/cart/cart_controller.dart';
 import '../../features/products/product_detail.dart';
 import '../../features/products/product_engagement_controller.dart';
 import '../../features/products/products_controller.dart';
 import '../../features/products/variant_formatting.dart';
+import '../../utils/text_utils.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.slug});
@@ -85,7 +87,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Ошибка: $e')),
+        error: (e, _) => Center(
+              child: ErrorRetryPanel(
+                message: friendlyErrorMessage(e),
+                onRetry: () => ref.invalidate(productDetailProvider(widget.slug)),
+              ),
+            ),
       ),
     );
   }
@@ -229,8 +236,14 @@ class _Body extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        SizedBox(
-          height: 260,
+        Container(
+          height: 300,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: scheme.brightness == Brightness.dark
+                ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
+                : const Color(0xFFF7F7F7),
+          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: Stack(
@@ -245,14 +258,16 @@ class _Body extends ConsumerWidget {
                         child: Icon(Icons.image_outlined, size: 56, color: scheme.primary),
                       );
                     }
-                    return Image.network(
-                      images[index],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) => ColoredBox(
-                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.22),
-                        child: Icon(Icons.broken_image_outlined, size: 56, color: scheme.primary),
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      child: Image.network(
+                        images[index],
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        errorBuilder: (context, error, stackTrace) => ColoredBox(
+                          color: scheme.surfaceContainerHighest.withValues(alpha: 0.22),
+                          child: Icon(Icons.broken_image_outlined, size: 56, color: scheme.primary),
+                        ),
                       ),
                     );
                   },
@@ -308,7 +323,7 @@ class _Body extends ConsumerWidget {
           Text('Описание', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
           Text(
-            p.description,
+            stripHtml(p.description),
             style: textTheme.bodyMedium?.copyWith(
               color: scheme.onSurface.withValues(alpha: 0.82),
               height: 1.35,

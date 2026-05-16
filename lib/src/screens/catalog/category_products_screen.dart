@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/catalog/catalog_providers.dart';
 import '../../features/products/product_grid_card.dart';
+import '../../features/products/product_summary.dart';
+import '../../features/products/products_controller.dart';
+import '../../ui/error_retry.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 import '../../ui/skeleton.dart';
 
@@ -22,14 +24,107 @@ class CategoryProductsScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen> {
-  int _pageSize = 20;
-  String _ordering = '-created_at';
+  static const _pageSize = 20;
+  static const _gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 2,
+    crossAxisSpacing: 6,
+    mainAxisSpacing: 6,
+    childAspectRatio: 0.58,
+  );
 
-  CategoryProductsQuery get _query => (
-        slug: widget.categorySlug,
+  String _ordering = '-created_at';
+  List<ProductSummary> _items = [];
+  int _page = 1;
+  bool _hasMore = true;
+  bool _initialLoading = true;
+  bool _loadingMore = false;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFirstPage();
+  }
+
+  @override
+  void didUpdateWidget(covariant CategoryProductsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.categorySlug != widget.categorySlug) {
+      _reload();
+    }
+  }
+
+  Future<void> _reload() async {
+    setState(() {
+      _items = [];
+      _page = 1;
+      _hasMore = true;
+      _initialLoading = true;
+      _loadingMore = false;
+      _error = null;
+    });
+    await _loadFirstPage();
+  }
+
+  Future<void> _loadFirstPage() async {
+    try {
+      final repo = ref.read(productsRepositoryProvider);
+      final result = await repo.fetchProductsPage(
+        page: 1,
         pageSize: _pageSize,
+        categorySlug: widget.categorySlug,
         ordering: _ordering,
       );
+      if (!mounted) return;
+      setState(() {
+        _items = result.items;
+        _page = 1;
+        _hasMore = result.hasNext;
+        _initialLoading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _initialLoading = false;
+        _error = e;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (!_hasMore || _loadingMore || _initialLoading) return;
+    setState(() => _loadingMore = true);
+    try {
+      final repo = ref.read(productsRepositoryProvider);
+      final nextPage = _page + 1;
+      final result = await repo.fetchProductsPage(
+        page: nextPage,
+        pageSize: _pageSize,
+        categorySlug: widget.categorySlug,
+        ordering: _ordering,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page = nextPage;
+        _items = [..._items, ...result.items];
+        _hasMore = result.hasNext;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось загрузить: $e')),
+      );
+    }
+  }
+
+  void _setOrdering(String ordering) {
+    if (_ordering == ordering) return;
+    setState(() => _ordering = ordering);
+    _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +133,6 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
     final title = widget.categoryName?.trim().isNotEmpty == true
         ? widget.categoryName!.trim()
         : 'Товары';
-
-    final asyncItems = ref.watch(categoryProductsProvider(_query));
 
     return Scaffold(
       appBar: AppBar(
@@ -58,10 +151,7 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
           ),
         ),
         child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(categoryProductsProvider(_query));
-            await ref.read(categoryProductsProvider(_query).future);
-          },
+          onRefresh: _reload,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             children: [
@@ -77,79 +167,65 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
                   _SortChip(
                     label: 'Новые',
                     selected: _ordering == '-created_at',
-                    onTap: () => setState(() {
-                      _ordering = '-created_at';
-                      _pageSize = 20;
-                    }),
+                    onTap: () => _setOrdering('-created_at'),
                   ),
                   _SortChip(
                     label: 'Цена ↑',
                     selected: _ordering == 'price',
-                    onTap: () => setState(() {
-                      _ordering = 'price';
-                      _pageSize = 20;
-                    }),
+                    onTap: () => _setOrdering('price'),
                   ),
                   _SortChip(
                     label: 'Цена ↓',
                     selected: _ordering == '-price',
-                    onTap: () => setState(() {
-                      _ordering = '-price';
-                      _pageSize = 20;
-                    }),
+                    onTap: () => _setOrdering('-price'),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              asyncItems.when(
-                data: (items) {
-                  if (items.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Center(
-                        child: Text(
-                          'Нет товаров',
-                          style: textTheme.bodyLarge?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
+              if (_initialLoading)
+                const _ProductsSkeletonGrid()
+              else if (_error != null)
+                ErrorRetryPanel(
+                  message: friendlyErrorMessage(_error!),
+                  onRetry: _reload,
+                )
+              else if (_items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Text(
+                      'Нет товаров',
+                      style: textTheme.bodyLarge?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.6),
                       ),
-                    );
-                  }
-                  return Column(
-                    children: [
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: items.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.66,
-                        ),
-                        itemBuilder: (context, index) {
-                          return ProductGridCard(item: items[index]);
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      if (items.length >= _pageSize)
-                        Center(
-                          child: FilledButton.tonal(
-                            onPressed: () => setState(() => _pageSize += 20),
-                            child: const Text('Загрузить ещё'),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-                loading: () => const _ProductsSkeletonGrid(),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text('Ошибка: $e'),
+                    ),
+                  ),
+                )
+              else ...[
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _items.length,
+                  gridDelegate: _gridDelegate,
+                  itemBuilder: (context, index) {
+                    return ProductGridCard(item: _items[index]);
+                  },
                 ),
-              ),
+                const SizedBox(height: 14),
+                if (_hasMore)
+                  Center(
+                    child: FilledButton.tonal(
+                      onPressed: _loadingMore ? null : _loadMore,
+                      child: _loadingMore
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Загрузить ещё'),
+                    ),
+                  ),
+              ],
             ],
           ),
         ),
@@ -194,9 +270,9 @@ class _ProductsSkeletonGrid extends StatelessWidget {
       itemCount: 4,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.66,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 0.58,
       ),
       itemBuilder: (context, index) {
         return ClipRRect(
@@ -206,7 +282,7 @@ class _ProductsSkeletonGrid extends StatelessWidget {
             children: [
               const SkeletonBox(
                 width: double.infinity,
-                height: 128,
+                height: 168,
                 borderRadius: BorderRadius.all(Radius.circular(16)),
               ),
               const Padding(

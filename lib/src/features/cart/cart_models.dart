@@ -59,5 +59,29 @@ class CartItem {
       variantLabel: variantLabel,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'slug': slug,
+        'name': name,
+        'currency': currency,
+        'unit_price': unitPrice,
+        'qty': qty,
+        'image_url': imageUrl,
+        'variant_sku': variantSku,
+        'variant_id': variantId,
+        'variant_label': variantLabel,
+      };
+
+  static CartItem fromJson(Map<String, dynamic> json) => CartItem(
+        slug: (json['slug'] ?? '').toString(),
+        name: (json['name'] ?? '').toString(),
+        currency: (json['currency'] ?? 'TJS').toString(),
+        unitPrice: (json['unit_price'] ?? json['unitPrice'] ?? '0').toString(),
+        qty: (json['qty'] is int) ? json['qty'] as int : int.tryParse('${json['qty']}') ?? 1,
+        imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
+        variantSku: json['variant_sku'] as String? ?? json['variantSku'] as String?,
+        variantId: json['variant_id'] as String? ?? json['variantId'] as String?,
+        variantLabel: json['variant_label'] as String? ?? json['variantLabel'] as String?,
+      );
 }
 

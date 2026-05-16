@@ -5,44 +5,41 @@ class CategoriesRepository {
   CategoriesRepository(this._api);
   final ApiClient _api;
 
+  static const _rootQuery = <String, String>{
+    'ordering': 'ordering',
+    'top': '1',
+  };
+
+  List<CategoryItem> _parseRootCategories(Object? results) {
+    if (results is! List) return const [];
+    return results
+        .whereType<Map<String, dynamic>>()
+        .map(CategoryItem.fromJson)
+        .where((c) => c.isRoot)
+        .toList(growable: false);
+  }
+
   Future<List<CategoryItem>> fetchTopCategories({int limit = 6}) async {
     final json = await _api.getJson(
       '/api/v1/categories/',
       query: {
-        'page_size': '$limit',
-        'ordering': 'ordering',
-        'top': '1',
+        ..._rootQuery,
+        'page_size': '${limit * 3}',
       },
     );
-    final results = json['results'];
-    if (results is List) {
-      return results
-          .whereType<Map<String, dynamic>>()
-          .map(CategoryItem.fromJson)
-          .take(limit)
-          .toList(growable: false);
-    }
-    return const [];
+    return _parseRootCategories(json['results']).take(limit).toList(growable: false);
   }
 
-  /// Ҳамаи категорияҳои реша (барои саҳифаи «Каталог»).
-  Future<List<CategoryItem>> fetchRootCategories({int pageSize = 100}) async {
+  /// Танҳо категорияҳои реша (родительские), бе подкатегорий.
+  Future<List<CategoryItem>> fetchRootCategories({int pageSize = 200}) async {
     final json = await _api.getJson(
       '/api/v1/categories/',
       query: {
+        ..._rootQuery,
         'page_size': '$pageSize',
-        'ordering': 'ordering',
-        'top': '1',
       },
     );
-    final results = json['results'];
-    if (results is List) {
-      return results
-          .whereType<Map<String, dynamic>>()
-          .map(CategoryItem.fromJson)
-          .toList(growable: false);
-    }
-    return const [];
+    return _parseRootCategories(json['results']);
   }
 }
 

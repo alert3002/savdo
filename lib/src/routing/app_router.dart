@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../screens/home/home_shell.dart';
@@ -6,6 +7,7 @@ import '../screens/cart/cart_screen.dart';
 import '../screens/catalog/catalog_screen.dart';
 import '../screens/catalog/category_products_screen.dart';
 import '../screens/mlm/mlm_screen.dart';
+import '../screens/mlm/mlm_bonuses_screen.dart';
 import '../screens/mlm/team_tree_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -21,8 +23,15 @@ import '../screens/shop/shop_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import 'app_routes.dart';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
+final appRouterProvider = Provider<GoRouter>((ref) {
+  return createAppRouter();
+});
+
 GoRouter createAppRouter() {
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     routes: [
       GoRoute(
@@ -141,6 +150,10 @@ GoRouter createAppRouter() {
                     path: 'tree',
                     builder: (context, state) => const TeamTreeScreen(),
                   ),
+                  GoRoute(
+                    path: 'bonuses',
+                    builder: (context, state) => const MlmBonusesScreen(),
+                  ),
                 ],
               ),
             ],
@@ -176,10 +189,17 @@ GoRouter createAppRouter() {
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('Ошибка')),
       body: Center(
-        child: Text('Route error: ${state.error}'),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Страница не найдена.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
       ),
     ),
   );
 }
-

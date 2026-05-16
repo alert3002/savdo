@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../config/app_config.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 
 enum InfoPageKey {
@@ -11,7 +13,7 @@ enum InfoPageKey {
   support,
 }
 
-class InfoPageScreen extends StatelessWidget {
+class InfoPageScreen extends StatefulWidget {
   const InfoPageScreen({
     super.key,
     required this.page,
@@ -20,217 +22,64 @@ class InfoPageScreen extends StatelessWidget {
   final InfoPageKey page;
 
   @override
-  Widget build(BuildContext context) {
-    final (title, blocks) = _content(page);
+  State<InfoPageScreen> createState() => _InfoPageScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: shopLayerAppBarActions(context),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          for (final b in blocks) ...[
-            _BlockCard(block: b),
-            const SizedBox(height: 10),
-          ],
-        ],
-      ),
-    );
+class _InfoPageScreenState extends State<InfoPageScreen> {
+  late final WebViewController _controller;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = _urlForPage(widget.page);
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) setState(() => _loading = false);
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(url));
   }
-}
 
-class _InfoBlock {
-  const _InfoBlock(this.title, this.body);
-  final String title;
-  final String body;
-}
+  static String _urlForPage(InfoPageKey page) {
+    final base = AppConfig.publicBaseUrl.replaceAll(RegExp(r'\/+$'), '');
+    return switch (page) {
+      InfoPageKey.privacy => '$base/politika/',
+      InfoPageKey.support => '$base/podderzhka/',
+      InfoPageKey.about => '$base/politika/',
+      InfoPageKey.delivery => '$base/politika/',
+      InfoPageKey.payment => '$base/politika/',
+      InfoPageKey.returns => '$base/politika/',
+    };
+  }
 
-class _BlockCard extends StatelessWidget {
-  const _BlockCard({required this.block});
-  final _InfoBlock block;
+  static String _titleForPage(InfoPageKey page) => switch (page) {
+        InfoPageKey.about => 'О нас',
+        InfoPageKey.delivery => 'Условия доставки',
+        InfoPageKey.payment => 'Как оплатить',
+        InfoPageKey.returns => 'Возврат',
+        InfoPageKey.privacy => 'Политика конфиденциальности',
+        InfoPageKey.support => 'Поддержка',
+      };
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.20),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.25)),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_titleForPage(widget.page)),
+        actions: shopLayerAppBarActions(context),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
         children: [
-          Text(
-            block.title,
-            style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          SelectableText(
-            block.body,
-            style: textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurface.withValues(alpha: 0.78),
-              height: 1.35,
-            ),
-          ),
+          WebViewWidget(controller: _controller),
+          if (_loading)
+            const Center(child: CircularProgressIndicator()),
         ],
       ),
     );
-  }
-}
-
-(String, List<_InfoBlock>) _content(InfoPageKey page) {
-  switch (page) {
-    case InfoPageKey.about:
-      return (
-        'О нас',
-        const [
-          _InfoBlock(
-            'Кто мы',
-            'Savdo.tech — магазин автохимии и бытовой химии. '
-            'Через приложение вы можете выбирать товары, оформлять заказы и следить за статусом.',
-          ),
-          _InfoBlock(
-            'Цены и ассортимент',
-            'Ассортимент и цены в приложении могут меняться без предварительного уведомления. '
-            'Актуальная информация отображается в карточке товара и при оформлении заказа.',
-          ),
-          _InfoBlock(
-            'MLM (если подключено)',
-            'Раздел MLM предназначен для участников партнёрской программы. '
-            'Доступность функций зависит от настроек аккаунта и правил программы.',
-          ),
-        ],
-      );
-
-    case InfoPageKey.delivery:
-      return (
-        'Условия доставки',
-        const [
-          _InfoBlock(
-            'Бесплатная доставка',
-            'Бесплатная доставка может быть доступна при выполнении условий магазина '
-            '(например, минимальная сумма заказа, зона доставки или пункт выдачи).',
-          ),
-          _InfoBlock(
-            'Сроки',
-            'Срок доставки зависит от города/района и загруженности. '
-            'Точную информацию можно уточнить у поддержки после оформления заказа.',
-          ),
-          _InfoBlock(
-            'Пункт выдачи / курьер',
-            'В некоторых случаях заказ доставляется в пункт выдачи. '
-            'Если доступна курьерская доставка — условия будут сообщены при подтверждении заказа.',
-          ),
-          _InfoBlock(
-            'Проверка заказа',
-            'При получении рекомендуем проверить упаковку и комплектность. '
-            'Если есть проблема — сразу сообщите в поддержку.',
-          ),
-        ],
-      );
-
-    case InfoPageKey.payment:
-      return (
-        'Как оплатить',
-        const [
-          _InfoBlock(
-            'Способы оплаты',
-            'Оплата может быть доступна: при получении (наличными/картой) или онлайн, '
-            'в зависимости от региона и настроек магазина.',
-          ),
-          _InfoBlock(
-            'Подтверждение оплаты',
-            'После оформления заказа вы увидите подтверждение в разделе «Мои заказы». '
-            'Если выбран онлайн‑платёж и он не прошёл — заказ может остаться в статусе «Создан».',
-          ),
-          _InfoBlock(
-            'Безопасность',
-            'Платёжные данные обрабатываются платёжным провайдером. '
-            'Приложение не хранит данные банковских карт на устройстве.',
-          ),
-        ],
-      );
-
-    case InfoPageKey.returns:
-      return (
-        'Возврат',
-        const [
-          _InfoBlock(
-            'Проверка при получении',
-            'Рекомендуем проверить заказ при получении: целостность упаковки, количество, '
-            'соответствие товара и срок годности (если применимо).',
-          ),
-          _InfoBlock(
-            'Если товар не подходит / брак',
-            'Если товар ненадлежащего качества или не соответствует заказу — обратитесь в поддержку. '
-            'Мы подскажем порядок возврата/обмена согласно законодательству Республики Таджикистан.',
-          ),
-          _InfoBlock(
-            'Возврат денежных средств',
-            'Срок и способ возврата зависят от способа оплаты и процедуры подтверждения возврата. '
-            'После принятия решения магазином возврат производится тем же способом, которым была выполнена оплата '
-            '(если иное не предусмотрено правилами и законом).',
-          ),
-        ],
-      );
-
-    case InfoPageKey.privacy:
-      return (
-        'Политика конфиденциальности',
-        const [
-          _InfoBlock(
-            'Какие данные мы обрабатываем',
-            'Для работы приложения могут обрабатываться: номер телефона, имя/фамилия, адрес доставки, '
-            'история заказов, а также технические данные (например, информация об устройстве, журнал ошибок).',
-          ),
-          _InfoBlock(
-            'Цели обработки',
-            'Данные используются для: регистрации и входа, оформления и доставки заказов, поддержки, '
-            'уведомлений, предотвращения злоупотреблений и улучшения качества сервиса.',
-          ),
-          _InfoBlock(
-            'Передача третьим лицам',
-            'Данные могут передаваться только в объёме, необходимом для выполнения услуг: '
-            'службам доставки, платёжным провайдерам, сервисам уведомлений. '
-            'Мы не продаём персональные данные.',
-          ),
-          _InfoBlock(
-            'Хранение и защита',
-            'Мы применяем организационные и технические меры для защиты данных. '
-            'Срок хранения зависит от целей обработки и требований закона.',
-          ),
-          _InfoBlock(
-            'Ваши права',
-            'Вы можете запросить доступ, исправление или удаление ваших данных, а также отказаться от '
-            'маркетинговых уведомлений (если включены). Для запросов используйте раздел «Поддержка».',
-          ),
-        ],
-      );
-
-    case InfoPageKey.support:
-      return (
-        'Поддержка',
-        const [
-          _InfoBlock(
-            'Как связаться',
-            'Напишите нам по вопросам заказа, оплаты, возврата и работы приложения. '
-            'Контакты поддержки могут быть указаны на сайте `savdo.tech` или предоставлены менеджером.',
-          ),
-          _InfoBlock(
-            'Что указать в обращении',
-            'Укажите: номер телефона аккаунта, номер заказа (если есть), краткое описание проблемы '
-            'и при необходимости скриншоты.',
-          ),
-          _InfoBlock(
-            'Срок ответа',
-            'Мы стараемся отвечать как можно быстрее в рабочее время.',
-          ),
-        ],
-      );
   }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../auth/auth_controller.dart';
+import '../engagement/engagement_repository.dart';
+
 /// Шумораи ҳадди аксар барои рӯйхати «сравнение».
 const kCompareMaxItems = 4;
 
@@ -13,7 +16,51 @@ class FavoriteProductSlugsNotifier extends AsyncNotifier<Set<String>> {
   @override
   Future<Set<String>> build() async {
     final p = await SharedPreferences.getInstance();
-    return (p.getStringList(_k) ?? []).toSet();
+    var local = (p.getStringList(_k) ?? []).toSet();
+    ref.listen(authControllerProvider, (prev, next) {
+      if (prev?.isAuthenticated != true && next.isAuthenticated) {
+        Future.microtask(() async {
+          final merged = await _fetchMerged(local);
+          state = AsyncData(merged);
+        });
+      }
+    });
+    if (ref.read(authControllerProvider).isAuthenticated) {
+      local = await _fetchMerged(local);
+    }
+    return local;
+  }
+
+  Future<Set<String>> _fetchMerged(Set<String> local) async {
+    final bearer = ref.read(authControllerProvider).accessToken;
+    if (bearer == null || bearer.isEmpty) return local;
+    try {
+      final data = await ref.read(engagementRepositoryProvider).fetchClientData(bearer);
+      final remote = _parseSlugList(data['favorite_slugs']);
+      final merged = {...local, ...remote};
+      final p = await SharedPreferences.getInstance();
+      await p.setStringList(_k, merged.toList());
+      await _pushToServer(merged);
+      return merged;
+    } catch (_) {
+      return local;
+    }
+  }
+
+  Set<String> _parseSlugList(Object? raw) {
+    if (raw is! List) return {};
+    return raw.map((e) => e.toString()).where((e) => e.isNotEmpty).toSet();
+  }
+
+  Future<void> _pushToServer(Set<String> slugs) async {
+    final bearer = ref.read(authControllerProvider).accessToken;
+    if (bearer == null || bearer.isEmpty) return;
+    try {
+      await ref.read(engagementRepositoryProvider).patchClientData(
+            bearer: bearer,
+            payload: ClientDataPayload(favoriteSlugs: slugs.toList(growable: false)),
+          );
+    } catch (_) {}
   }
 
   Future<void> toggle(String slug) async {
@@ -31,6 +78,7 @@ class FavoriteProductSlugsNotifier extends AsyncNotifier<Set<String>> {
     state = AsyncData(next);
     final p = await SharedPreferences.getInstance();
     await p.setStringList(_k, next.toList());
+    await _pushToServer(next);
   }
 }
 
@@ -44,7 +92,51 @@ class CompareProductSlugsNotifier extends AsyncNotifier<List<String>> {
   @override
   Future<List<String>> build() async {
     final p = await SharedPreferences.getInstance();
-    return p.getStringList(_k) ?? [];
+    var local = p.getStringList(_k) ?? [];
+    ref.listen(authControllerProvider, (prev, next) {
+      if (prev?.isAuthenticated != true && next.isAuthenticated) {
+        Future.microtask(() async {
+          final merged = await _fetchMerged(local);
+          state = AsyncData(merged);
+        });
+      }
+    });
+    if (ref.read(authControllerProvider).isAuthenticated) {
+      local = await _fetchMerged(local);
+    }
+    return local;
+  }
+
+  Future<List<String>> _fetchMerged(List<String> local) async {
+    final bearer = ref.read(authControllerProvider).accessToken;
+    if (bearer == null || bearer.isEmpty) return local;
+    try {
+      final data = await ref.read(engagementRepositoryProvider).fetchClientData(bearer);
+      final remote = (data['compare_slugs'] is List)
+          ? (data['compare_slugs'] as List).map((e) => e.toString()).where((e) => e.isNotEmpty).toList()
+          : <String>[];
+      var merged = <String>{...local, ...remote}.toList();
+      if (merged.length > kCompareMaxItems) {
+        merged = merged.sublist(merged.length - kCompareMaxItems);
+      }
+      final p = await SharedPreferences.getInstance();
+      await p.setStringList(_k, merged);
+      await _pushToServer(merged);
+      return merged;
+    } catch (_) {
+      return local;
+    }
+  }
+
+  Future<void> _pushToServer(List<String> slugs) async {
+    final bearer = ref.read(authControllerProvider).accessToken;
+    if (bearer == null || bearer.isEmpty) return;
+    try {
+      await ref.read(engagementRepositoryProvider).patchClientData(
+            bearer: bearer,
+            payload: ClientDataPayload(compareSlugs: slugs),
+          );
+    } catch (_) {}
   }
 
   /// `true` агар тағйир дода шуд, `false` агар ҳад пур бошад ва илова нашуд.
@@ -59,6 +151,7 @@ class CompareProductSlugsNotifier extends AsyncNotifier<List<String>> {
       state = AsyncData(current);
       final p = await SharedPreferences.getInstance();
       await p.setStringList(_k, current);
+      await _pushToServer(current);
       return true;
     }
     if (current.length >= kCompareMaxItems) {
@@ -68,6 +161,7 @@ class CompareProductSlugsNotifier extends AsyncNotifier<List<String>> {
     state = AsyncData(current);
     final p = await SharedPreferences.getInstance();
     await p.setStringList(_k, current);
+    await _pushToServer(current);
     return true;
   }
 }

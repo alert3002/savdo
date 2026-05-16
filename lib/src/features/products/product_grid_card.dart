@@ -25,47 +25,57 @@ class ProductGridCard extends ConsumerWidget {
           orElse: () => false,
         );
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () => context.push(AppRoutes.productBySlug(item.slug)),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.45),
+    final borderRadius = BorderRadius.circular(16);
+    final borderColor = scheme.outline.withValues(alpha: scheme.brightness == Brightness.dark ? 0.55 : 0.38);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: borderRadius,
+        onTap: () => context.push(AppRoutes.productBySlug(item.slug)),
+        splashColor: scheme.primary.withValues(alpha: 0.22),
+        highlightColor: scheme.primary.withValues(alpha: 0.12),
+        hoverColor: scheme.primary.withValues(alpha: 0.10),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+            borderRadius: borderRadius,
+            border: Border.all(color: borderColor, width: 1),
           ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
+          child: ClipRRect(
+            borderRadius: borderRadius,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: double.infinity,
-                height: 120,
-                color: scheme.primary.withValues(alpha: 0.10),
+                height: 168,
+                color: scheme.brightness == Brightness.dark
+                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
+                    : const Color(0xFFF7F7F7),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Stack(
                   children: [
                     Positioned.fill(
-                      child: item.primaryImage != null && item.primaryImage!.isNotEmpty
-                          ? Image.network(
-                              item.primaryImage!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              errorBuilder: (context, error, stackTrace) => Icon(
+                      child: Center(
+                        child: item.primaryImage != null && item.primaryImage!.isNotEmpty
+                            ? Image.network(
+                                item.primaryImage!,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                                errorBuilder: (context, error, stackTrace) => Icon(
+                                  Icons.local_car_wash_outlined,
+                                  size: 46,
+                                  color: scheme.primary,
+                                ),
+                              )
+                            : Icon(
                                 Icons.local_car_wash_outlined,
                                 size: 46,
                                 color: scheme.primary,
                               ),
-                            )
-                          : Icon(
-                              Icons.local_car_wash_outlined,
-                              size: 46,
-                              color: scheme.primary,
-                            ),
-                        ),
+                      ),
+                    ),
                     Positioned(
                       top: 6,
                       right: 6,
@@ -157,6 +167,7 @@ class ProductGridCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
