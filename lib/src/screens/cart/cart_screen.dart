@@ -10,6 +10,7 @@ import '../../features/cart/cart_controller.dart';
 import '../../features/cart/cart_models.dart';
 import '../../features/cart/checkout_providers.dart';
 import '../../routing/app_routes.dart';
+import '../../theme/grass_colors.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 import '../../features/auth/sms_login_form.dart';
 
@@ -289,11 +290,11 @@ class _CartLineCard extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    color: scheme.primary.withValues(alpha: 0.10),
+                    color: GrassColors.productImageBackground,
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                      ? Image.network(item.imageUrl!, fit: BoxFit.cover)
+                      ? Image.network(item.imageUrl!, fit: BoxFit.contain)
                       : Icon(Icons.image_outlined, color: scheme.primary),
                 ),
               ),

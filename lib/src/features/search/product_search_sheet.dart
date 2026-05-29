@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../routing/app_routes.dart';
+import '../../theme/grass_colors.dart';
 import '../products/product_summary.dart';
 import 'product_search_controller.dart';
 
@@ -150,7 +153,10 @@ class _ProductRow extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {},
+      onTap: () {
+        Navigator.of(context).pop();
+        context.push(AppRoutes.productBySlug(item.slug));
+      },
       child: Ink(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -162,15 +168,33 @@ class _ProductRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: ColoredBox(
+                color: GrassColors.productImageBackground,
+                child: SizedBox(
+                  width: 56,
+                  height: 72,
+                  child: item.primaryImage != null && item.primaryImage!.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Image.network(
+                            item.primaryImage!,
+                            fit: BoxFit.contain,
+                            alignment: Alignment.center,
+                            width: 48,
+                            height: 64,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.local_car_wash_outlined,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Icon(Icons.local_car_wash_outlined, color: scheme.primary),
+                        ),
               ),
-              alignment: Alignment.center,
-              child: Icon(Icons.local_car_wash_outlined, color: scheme.primary),
+            ),
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -8,6 +8,7 @@ class CategoryItem {
     required this.imageUrl,
     this.productCount = 0,
     this.parentId,
+    this.isActive = true,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class CategoryItem {
   final int productCount;
   /// `null` = категорияи реша (родительская).
   final String? parentId;
+  final bool isActive;
 
   bool get isRoot => parentId == null || parentId!.isEmpty;
 
@@ -30,6 +32,7 @@ class CategoryItem {
       imageUrl: AppConfig.normalizeMediaUrl(json['image_url'] as String?),
       productCount: pc is int ? pc : int.tryParse('$pc') ?? 0,
       parentId: _parseParentId(json['parent']),
+      isActive: json['is_active'] != false,
     );
   }
 

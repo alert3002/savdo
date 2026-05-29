@@ -6,5 +6,8 @@ class GrassColors {
   static const Color grassAccent = Color(0xFF7CC400);
   static const Color grassBlack = Color(0xFF000000);
   static const Color grassWhite = Color(0xFFFFFFFF);
+
+  /// Фони аксҳои маҳсулот — ҳамеша сафед (дар ҳар ду тема).
+  static const Color productImageBackground = grassWhite;
 }
 

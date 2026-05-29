@@ -20,6 +20,9 @@ class AppRoutes {
 
   /// Маҳсулотҳои категория (зери таби Каталог, футер намоиш дода мешавад).
   static String catalogCategoryProducts(String slug) => '/home/catalog/category/$slug';
+
+  /// Зеркатегорияҳо (зери таби Каталог).
+  static String catalogCategoryChildren(String slug) => '/home/catalog/category/$slug/children';
   static const String cart = '/home/cart';
   static const String mlm = '/home/mlm';
   static const String mlmTeamTree = '/home/mlm/tree';

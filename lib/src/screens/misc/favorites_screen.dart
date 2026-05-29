@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/products/product_engagement_controller.dart';
 import '../../features/products/products_controller.dart';
 import '../../routing/app_routes.dart';
+import '../../theme/grass_colors.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 
 class FavoritesScreen extends ConsumerWidget {
@@ -87,22 +88,22 @@ class _FavoriteProductTile extends ConsumerWidget {
             contentPadding: const EdgeInsets.fromLTRB(8, 8, 6, 8),
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 62,
-                height: 62,
-                child: (p.primaryImage != null && p.primaryImage!.isNotEmpty)
-                    ? Image.network(
-                        p.primaryImage!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => DecoratedBox(
-                          decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.10)),
-                          child: Icon(Icons.image_not_supported_outlined, color: scheme.primary),
-                        ),
-                      )
-                    : DecoratedBox(
-                        decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.10)),
-                        child: Icon(Icons.local_car_wash_outlined, color: scheme.primary),
-                      ),
+              child: ColoredBox(
+                color: GrassColors.productImageBackground,
+                child: SizedBox(
+                  width: 62,
+                  height: 62,
+                  child: (p.primaryImage != null && p.primaryImage!.isNotEmpty)
+                      ? Image.network(
+                          p.primaryImage!,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.image_not_supported_outlined,
+                            color: scheme.primary,
+                          ),
+                        )
+                      : Icon(Icons.local_car_wash_outlined, color: scheme.primary),
+                ),
               ),
             ),
             title: Text(

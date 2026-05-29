@@ -11,6 +11,13 @@ final catalogRootCategoriesProvider = FutureProvider<List<CategoryItem>>((ref) a
   return repo.fetchRootCategories();
 });
 
+/// Зеркатегорияҳои як категория.
+final categoryChildrenProvider =
+    FutureProvider.family<List<CategoryItem>, String>((ref, parentSlug) async {
+  final repo = ref.watch(categoriesRepositoryProvider);
+  return repo.fetchChildCategories(parentSlug: parentSlug);
+});
+
 /// Маҳсулот дар як категория (саҳифаи алоҳида).
 typedef CategoryProductsQuery = ({
   String slug,

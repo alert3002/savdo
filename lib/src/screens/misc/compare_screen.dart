@@ -6,6 +6,7 @@ import '../../features/products/product_detail.dart';
 import '../../features/products/product_engagement_controller.dart';
 import '../../features/products/products_controller.dart';
 import '../../routing/app_routes.dart';
+import '../../theme/grass_colors.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 
 class CompareScreen extends ConsumerWidget {
@@ -289,7 +290,7 @@ class _CompareTable extends StatelessWidget {
         return Container(
           height: 120,
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
+            color: GrassColors.productImageBackground,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.30)),
           ),
@@ -302,22 +303,21 @@ class _CompareTable extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: AspectRatio(
           aspectRatio: 1.35,
-          child: Image.network(
-            url,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
-              alignment: Alignment.center,
-              child: Icon(Icons.broken_image_outlined, color: scheme.onSurface.withValues(alpha: 0.45)),
+          child: ColoredBox(
+            color: GrassColors.productImageBackground,
+            child: Image.network(
+              url,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Center(
+                child: Icon(Icons.broken_image_outlined, color: scheme.onSurface.withValues(alpha: 0.45)),
+              ),
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const Center(
+                  child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                );
+              },
             ),
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return Container(
-                color: scheme.surfaceContainerHighest.withValues(alpha: 0.22),
-                alignment: Alignment.center,
-                child: const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-              );
-            },
           ),
         ),
       );

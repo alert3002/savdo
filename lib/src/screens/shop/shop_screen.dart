@@ -6,12 +6,15 @@ import 'dart:async';
 import '../../brand/brand_assets.dart';
 import '../../features/categories/categories_controller.dart';
 import '../../features/categories/category_item.dart';
+import '../../features/categories/category_navigation.dart';
 import '../../features/products/product_summary.dart';
 import '../../features/products/products_controller.dart';
 import '../../features/products/product_grid_card.dart';
 import '../../features/search/product_search_sheet.dart';
 import '../../features/slider/slider_controller.dart';
 import '../../routing/app_routes.dart';
+import '../../theme/grass_colors.dart';
+import '../../ui/category_image_fallback.dart';
 import '../../ui/error_retry.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 import '../../ui/skeleton.dart';
@@ -276,7 +279,7 @@ class _CategoryGrid extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         asyncCats.when(
-          data: (items) => _CategoryGridBody(items: items),
+          data: (items) => _CategoryGridBody(items: items, ref: ref),
           loading: () => _CategorySkeleton(scheme: scheme),
           error: (e, st) => _CategorySkeleton(scheme: scheme),
         ),
@@ -286,8 +289,9 @@ class _CategoryGrid extends ConsumerWidget {
 }
 
 class _CategoryGridBody extends StatelessWidget {
-  const _CategoryGridBody({required this.items});
+  const _CategoryGridBody({required this.items, required this.ref});
   final List<CategoryItem> items;
+  final WidgetRef ref;
 
   @override
   Widget build(BuildContext context) {
@@ -313,10 +317,7 @@ class _CategoryGridBody extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: () {
             if (c.slug.isEmpty) return;
-            context.push(
-              AppRoutes.catalogCategoryProducts(c.slug),
-              extra: c.name,
-            );
+            navigateToCategory(context, ref, c);
           },
           child: Ink(
             decoration: BoxDecoration(
@@ -344,16 +345,14 @@ class _CategoryGridBody extends StatelessWidget {
                       imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) =>
-                          _HomeCategoryPlaceholder(scheme: scheme),
+                          const CategoryImageFallback(),
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
-                        return ColoredBox(
-                          color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
-                        );
+                        return const CategoryImageFallback(compact: true);
                       },
                     )
                   else
-                    _HomeCategoryPlaceholder(scheme: scheme),
+                    const CategoryImageFallback(),
                   if (hasImage)
                     Positioned(
                       left: 0,
@@ -383,7 +382,7 @@ class _CategoryGridBody extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w900,
-                          color: hasImage ? Colors.white : scheme.onSurface,
+                          color: hasImage ? Colors.white : GrassColors.grassBlack,
                           height: 1.05,
                           fontSize: 12,
                           shadows: hasImage
@@ -401,25 +400,6 @@ class _CategoryGridBody extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _HomeCategoryPlaceholder extends StatelessWidget {
-  const _HomeCategoryPlaceholder({required this.scheme});
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
-      child: Center(
-        child: Icon(
-          Icons.category_outlined,
-          size: 30,
-          color: scheme.primary.withValues(alpha: 0.55),
-        ),
-      ),
     );
   }
 }

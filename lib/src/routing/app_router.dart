@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../screens/home/home_shell.dart';
 import '../screens/cart/cart_screen.dart';
 import '../screens/catalog/catalog_screen.dart';
+import '../screens/catalog/category_children_screen.dart';
 import '../screens/catalog/category_products_screen.dart';
 import '../screens/mlm/mlm_screen.dart';
 import '../screens/mlm/mlm_bonuses_screen.dart';
@@ -117,6 +118,19 @@ GoRouter createAppRouter() {
                 routes: [
                   GoRoute(
                     path: 'category/:slug',
+                    routes: [
+                      GoRoute(
+                        path: 'children',
+                        builder: (context, state) {
+                          final slug = state.pathParameters['slug'] ?? '';
+                          final name = state.extra as String?;
+                          return CategoryChildrenScreen(
+                            parentSlug: slug,
+                            parentName: name,
+                          );
+                        },
+                      ),
+                    ],
                     builder: (context, state) {
                       final slug = state.pathParameters['slug'] ?? '';
                       final name = state.extra as String?;

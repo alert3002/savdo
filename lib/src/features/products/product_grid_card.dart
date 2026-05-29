@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'product_engagement_controller.dart';
 import '../../routing/app_routes.dart';
+import '../../theme/grass_colors.dart';
 import 'product_summary.dart';
 
 /// Карточка маҳсулот дар шабака (мағоза, каталог).
@@ -50,9 +51,7 @@ class ProductGridCard extends ConsumerWidget {
               Container(
                 width: double.infinity,
                 height: 168,
-                color: scheme.brightness == Brightness.dark
-                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
-                    : const Color(0xFFF7F7F7),
+                color: GrassColors.productImageBackground,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Stack(
                   children: [

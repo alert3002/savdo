@@ -8,6 +8,7 @@ import '../../features/products/product_detail.dart';
 import '../../features/products/product_engagement_controller.dart';
 import '../../features/products/products_controller.dart';
 import '../../features/products/variant_formatting.dart';
+import '../../theme/grass_colors.dart';
 import '../../utils/text_utils.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -236,50 +237,9 @@ class _Body extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Container(
-          height: 300,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            color: scheme.brightness == Brightness.dark
-                ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
-                : const Color(0xFFF7F7F7),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                PageView.builder(
-                  itemCount: images.isEmpty ? 1 : images.length,
-                  itemBuilder: (context, index) {
-                    if (images.isEmpty) {
-                      return ColoredBox(
-                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.22),
-                        child: Icon(Icons.image_outlined, size: 56, color: scheme.primary),
-                      );
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                      child: Image.network(
-                        images[index],
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                        errorBuilder: (context, error, stackTrace) => ColoredBox(
-                          color: scheme.surfaceContainerHighest.withValues(alpha: 0.22),
-                          child: Icon(Icons.broken_image_outlined, size: 56, color: scheme.primary),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: _ProductEngagementActions(productSlug: p.slug),
-                ),
-              ],
-            ),
-          ),
+        _ProductImageGallery(
+          images: images,
+          productSlug: p.slug,
         ),
         const SizedBox(height: 14),
         Text(
@@ -615,6 +575,349 @@ class _DetailPrice extends StatelessWidget {
           style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
         ),
       ],
+    );
+  }
+}
+
+/// Галереяи аксҳои маҳсулот — pinch-zoom ва full-screen бо пахш.
+class _ProductImageGallery extends StatefulWidget {
+  const _ProductImageGallery({required this.images, required this.productSlug});
+
+  final List<String> images;
+  final String productSlug;
+
+  @override
+  State<_ProductImageGallery> createState() => _ProductImageGalleryState();
+}
+
+class _ProductImageGalleryState extends State<_ProductImageGallery> {
+  late final PageController _pageController;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _openFullscreen() {
+    if (widget.images.isEmpty) return;
+    showGeneralDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      barrierLabel: 'Закрыть',
+      barrierColor: Colors.black.withValues(alpha: 0.78),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _ProductImageFullscreen(
+          images: widget.images,
+          initialIndex: _index,
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final images = widget.images;
+    final pageCount = images.isEmpty ? 1 : images.length;
+
+    return Container(
+      height: 360,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: GrassColors.productImageBackground,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              onPageChanged: (i) => setState(() => _index = i),
+              itemCount: pageCount,
+              itemBuilder: (context, index) {
+                if (images.isEmpty) {
+                  return ColoredBox(
+                    color: GrassColors.productImageBackground,
+                    child: Icon(Icons.image_outlined, size: 56, color: scheme.primary),
+                  );
+                }
+                return _InlineZoomableImage(
+                  imageUrl: images[index],
+                  errorIcon: Icon(Icons.broken_image_outlined, size: 56, color: scheme.primary),
+                );
+              },
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: _ProductEngagementActions(productSlug: widget.productSlug),
+            ),
+            if (images.length > 1)
+              Positioned(
+                bottom: 10,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(images.length, (i) {
+                    final active = i == _index;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: active ? 18 : 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? scheme.primary
+                            : scheme.onSurface.withValues(alpha: 0.28),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            if (images.isNotEmpty)
+              Positioned(
+                left: 10,
+                bottom: 10,
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    onTap: _openFullscreen,
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.zoom_out_map, size: 16, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Увеличить',
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineZoomableImage extends StatelessWidget {
+  const _InlineZoomableImage({
+    required this.imageUrl,
+    required this.errorIcon,
+  });
+
+  final String imageUrl;
+  final Widget errorIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      minScale: 1,
+      maxScale: 4,
+      clipBehavior: Clip.none,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          errorBuilder: (context, error, stackTrace) => ColoredBox(
+            color: GrassColors.productImageBackground,
+            child: errorIcon,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProductImageFullscreen extends StatefulWidget {
+  const _ProductImageFullscreen({required this.images, required this.initialIndex});
+
+  final List<String> images;
+  final int initialIndex;
+
+  @override
+  State<_ProductImageFullscreen> createState() => _ProductImageFullscreenState();
+}
+
+class _ProductImageFullscreenState extends State<_ProductImageFullscreen> {
+  late final PageController _pageController;
+  late int _index;
+  bool _pageScrollEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onZoomChanged(bool zoomed) {
+    final enabled = !zoomed;
+    if (_pageScrollEnabled == enabled) return;
+    setState(() => _pageScrollEnabled = enabled);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final images = widget.images;
+    final size = MediaQuery.sizeOf(context);
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      behavior: HitTestBehavior.opaque,
+      child: Material(
+        type: MaterialType.transparency,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              PageView.builder(
+              controller: _pageController,
+              physics: _pageScrollEnabled
+                  ? const PageScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              onPageChanged: (i) => setState(() {
+                _index = i;
+                _pageScrollEnabled = true;
+              }),
+              itemCount: images.length,
+              itemBuilder: (context, index) {
+                return _FullscreenZoomableImage(
+                  imageUrl: images[index],
+                  viewportWidth: size.width,
+                  viewportHeight: size.height,
+                  onZoomChanged: _onZoomChanged,
+                );
+              },
+            ),
+            Positioned(
+              top: 4,
+              left: 4,
+              child: IconButton(
+                tooltip: 'Закрыть',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              ),
+            ),
+            if (images.length > 1)
+              Positioned(
+                top: 12,
+                left: 0,
+                right: 0,
+                child: Text(
+                  '${_index + 1} / ${images.length}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FullscreenZoomableImage extends StatefulWidget {
+  const _FullscreenZoomableImage({
+    required this.imageUrl,
+    required this.viewportWidth,
+    required this.viewportHeight,
+    required this.onZoomChanged,
+  });
+
+  final String imageUrl;
+  final double viewportWidth;
+  final double viewportHeight;
+  final ValueChanged<bool> onZoomChanged;
+
+  @override
+  State<_FullscreenZoomableImage> createState() => _FullscreenZoomableImageState();
+}
+
+class _FullscreenZoomableImageState extends State<_FullscreenZoomableImage> {
+  final TransformationController _controller = TransformationController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_handleTransform);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_handleTransform);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleTransform() {
+    final zoomed = _controller.value.getMaxScaleOnAxis() > 1.01;
+    widget.onZoomChanged(zoomed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      behavior: HitTestBehavior.translucent,
+      child: InteractiveViewer(
+        transformationController: _controller,
+        minScale: 1,
+        maxScale: 5,
+        clipBehavior: Clip.none,
+        panEnabled: true,
+        scaleEnabled: true,
+        boundaryMargin: const EdgeInsets.all(48),
+        child: SizedBox(
+          width: widget.viewportWidth,
+          height: widget.viewportHeight,
+          child: Image.network(
+            widget.imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.broken_image_outlined,
+              size: 64,
+              color: Colors.white70,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
