@@ -1,11 +1,16 @@
 #!/bin/sh
-# Run on macOS before `flutter build ipa` (Codemagic pre-build or locally).
+# macOS / Codemagic: синхрони CocoaPods ПОСЛЕ flutter build ios --config-only
 set -e
-cd "$(dirname "$0")"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 
+flutter pub get
+flutter build ios --config-only --release
+
+cd ios
 rm -rf Pods Podfile.lock .symlinks
 pod repo update
 pod install --repo-update
 
-echo "CocoaPods synced. Commit Podfile.lock after local builds:"
-echo "  git add Podfile.lock && git commit -m 'chore(ios): update Podfile.lock'"
+echo "OK. Next: flutter build ipa --release --no-pub"
+echo "Commit Podfile.lock: git add ios/Podfile.lock"
