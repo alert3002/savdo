@@ -23,8 +23,7 @@ if [ -f app/pubspec.yaml ]; then cd app; fi
 flutter pub get
 flutter build ios --config-only --release
 cd ios
-rm -rf Pods Podfile.lock .symlinks
-pod repo update
+rm -rf Pods .symlinks
 pod install --repo-update
 cd ..
 ```

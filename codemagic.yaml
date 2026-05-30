@@ -1,0 +1,51 @@
+# Codemagic: репозиторий = корень app/ (savdo). Settings → Use codemagic.yaml
+workflows:
+  grass-ios:
+    name: Grass iOS
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Prepare iOS (SPM пеш, пас pod install)
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          flutter pub get
+          # UIScene + Swift Package Manager — пеш аз CocoaPods
+          flutter build ios --config-only --release
+          cd ios
+          rm -rf Pods .symlinks
+          if [ -f Gemfile ]; then
+            bundle install --quiet
+            bundle exec pod install --repo-update
+          else
+            pod install --repo-update
+          fi
+          cd ..
+      - name: Build IPA
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          # Як бор дигар sync (агар Flutter чизе иваз карда бошад)
+          cd ios && pod install && cd ..
+          flutter build ipa --release --no-pub
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+  grass-android:
+    name: Grass Android
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Android AAB
+        script: |
+          set -e
+          flutter pub get
+          flutter build appbundle --release
+    artifacts:
+      - build/**/outputs/**/*.aab

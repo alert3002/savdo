@@ -8,9 +8,14 @@ flutter pub get
 flutter build ios --config-only --release
 
 cd ios
-rm -rf Pods Podfile.lock .symlinks
-pod repo update
-pod install --repo-update
+rm -rf Pods .symlinks
+if [ -f Gemfile ]; then
+  bundle install
+  bundle exec pod install --repo-update
+else
+  pod install --repo-update
+fi
 
-echo "OK. Next: flutter build ipa --release --no-pub"
-echo "Commit Podfile.lock: git add ios/Podfile.lock"
+echo "OK. Next:"
+echo "  cd .. && flutter build ipa --release --no-pub"
+echo "Optional: git add ios/Podfile.lock && git commit"
