@@ -78,6 +78,9 @@ flutter_launcher_icons:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # Codemagic/CocoaPods: SPM дар build ipa Podfile.lock-ро вайрон мекунад
+  config:
+    enable-swift-package-manager: false
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

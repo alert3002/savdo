@@ -1,40 +1,85 @@
-# Codemagic iOS — ҳалли хатои Podfile.lock
+# Codemagic iOS — хатои Podfile.lock
 
-Агар `codemagic.yaml` дар git **небошад**, Codemagic workflow-и кӯҳна мезанад:
-`flutter build ipa` → SPM → `pod install` → **хато**.
+## Аломат
 
-## Вариант 1 (тавсия): `codemagic.yaml` дар git
+```
+Adding Swift Package Manager integration... 45s
+Running pod install... 860ms
+Error: The sandbox is not in sync with the Podfile.lock
+```
 
-1. `git add codemagic.yaml app/ios/ci_prepare_pods.sh app/ios/Gemfile`
-2. `git commit -m "ci: fix iOS CocoaPods order for Codemagic"`
-3. `git push`
-4. Codemagic → **App settings** → **Build** → **Use codemagic.yaml from the repository**
-5. Workflow: **grass-ios**
+Ин маънои онро дорад, ки **workflow-и кӯҳна** истифода мешавад (`flutter build ipa` дар UI), на `codemagic.yaml`.
+
+---
+
+## Ҳал (тавсия)
+
+### 1. Push файлу
+
+```bash
+git add pubspec.yaml codemagic.yaml scripts/codemagic_build_ios.sh ios/
+git commit -m "ci: disable SPM, fix CocoaPods sync for iOS"
+git push
+```
+
+### 2. Codemagic settings
+
+1. **App settings → Build → Use codemagic.yaml from the repository** = ON
+2. Workflow: **grass-ios**
+3. **Хомӯш кунед** қадами автоматии:
+   - `Flutter build ipa`
+   - `Build` (агар дубли мешавад)
+
+### 3. Санҷиш дар лог
+
+Бояд аввалин сатр бошад:
+
+```
+=== GRASS iOS BUILD (custom script) ===
+```
+
+Агар ин сатр **набошад** — yaml ҳанӯз истифода намешавад.
+
+---
 
 ## Вариант 2: танҳо UI (бе yaml)
 
-**Pre-build script** (пурра иваз кунед):
+**Як Pre-build script** (пурра):
 
 ```bash
 #!/bin/bash
 set -e
-# Агар root = app/ бошад, cd app-ро незанед
-if [ -f app/pubspec.yaml ]; then cd app; fi
+flutter config --no-enable-swift-package-manager
 flutter pub get
-flutter build ios --config-only --release
+flutter config --no-enable-swift-package-manager
+flutter build ios --config-only --release --no-codesign
 cd ios
 rm -rf Pods .symlinks
 pod install --repo-update
 cd ..
 ```
 
-**Build script** (ба ҷои `flutter build ipa`):
+**Як Build script**:
 
 ```bash
 #!/bin/bash
 set -e
-if [ -f app/pubspec.yaml ]; then cd app; fi
+cd ios && pod install && cd ..
 flutter build ipa --release --no-pub
 ```
 
-**Муҳим:** дар UI қадами автоматии «Flutter build ipa»-ро хомӯш кунед, агар ду бор build мешавад.
+Қадами автоматии `flutter build ipa`-ро **хомӯш** кунед.
+
+---
+
+## Чаро SPM хомӯш кардем?
+
+Дар `pubspec.yaml`:
+
+```yaml
+flutter:
+  config:
+    enable-swift-package-manager: false
+```
+
+Firebase ва плагинҳо бо **CocoaPods** кор мекунанд; ин хатои sync-ро дар Codemagic бартараф мекунад.

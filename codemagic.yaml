@@ -1,4 +1,8 @@
-# Codemagic: репозиторий = корень app/ (savdo). Settings → Use codemagic.yaml
+# Репозиторий = корень app/ (savdo) — github.com/alert3002/savdo
+# Codemagic → Settings → Use codemagic.yaml → workflow: grass-ios
+#
+# Имзо: Codemagic → Teams → Integrations → App Store Connect (API key)
+#       ё Certificates / Provisioning profiles барои com.grass.grass.app
 workflows:
   grass-ios:
     name: Grass iOS
@@ -8,30 +12,17 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
+      # Пас аз илова кардани App Store Connect дар Codemagic, инро кушоед:
+      # ios_signing:
+      #   distribution_type: app_store
+      #   bundle_identifier: com.grass.grass.app
+    # integrations:
+    #   app_store_connect: <номи API key дар Codemagic>
     scripts:
-      - name: Prepare iOS (SPM пеш, пас pod install)
+      - name: Build iOS IPA (custom)
         script: |
-          #!/bin/bash
-          set -euo pipefail
-          flutter pub get
-          # UIScene + Swift Package Manager — пеш аз CocoaPods
-          flutter build ios --config-only --release
-          cd ios
-          rm -rf Pods .symlinks
-          if [ -f Gemfile ]; then
-            bundle install --quiet
-            bundle exec pod install --repo-update
-          else
-            pod install --repo-update
-          fi
-          cd ..
-      - name: Build IPA
-        script: |
-          #!/bin/bash
-          set -euo pipefail
-          # Як бор дигар sync (агар Flutter чизе иваз карда бошад)
-          cd ios && pod install && cd ..
-          flutter build ipa --release --no-pub
+          chmod +x scripts/codemagic_build_ios.sh
+          ./scripts/codemagic_build_ios.sh
     artifacts:
       - build/ios/ipa/*.ipa
 
