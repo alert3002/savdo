@@ -46,14 +46,17 @@ class ProductGridCard extends ConsumerWidget {
           ),
           child: ClipRRect(
             borderRadius: borderRadius,
-            child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Container(
                 width: double.infinity,
-                height: 168,
+                height: 192,
                 color: GrassColors.productImageBackground,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 child: Stack(
                   children: [
                     Positioned.fill(
@@ -61,8 +64,8 @@ class ProductGridCard extends ConsumerWidget {
                         child: item.primaryImage != null && item.primaryImage!.isNotEmpty
                             ? GrassCachedNetworkImage(
                                 url: item.primaryImage!,
-                                width: 200,
-                                height: 168,
+                                width: 220,
+                                height: 192,
                                 fit: BoxFit.contain,
                                 alignment: Alignment.center,
                                 maxCacheSide: 512,
@@ -117,8 +120,9 @@ class ProductGridCard extends ConsumerWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -126,11 +130,12 @@ class ProductGridCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.bodyLarge?.copyWith(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
+                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       item.categoryName ?? '',
                       maxLines: 1,
@@ -139,8 +144,9 @@ class ProductGridCard extends ConsumerWidget {
                         color: scheme.onSurface.withValues(alpha: 0.70),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: _PriceBlock(item: item),
@@ -150,27 +156,29 @@ class ProductGridCard extends ConsumerWidget {
                               context.push(AppRoutes.productBySlug(item.slug)),
                           icon: const Icon(Icons.add, size: 16),
                           tooltip: 'Открыть',
+                          visualDensity: VisualDensity.compact,
                           style: IconButton.styleFrom(
-                            minimumSize: const Size(34, 34),
+                            minimumSize: const Size(32, 32),
                             padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
                       ],
                     ),
                     if (item.hasVariants) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       _VariantHint(item: item),
                     ],
                   ],
                 ),
               ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
-      ),
       ),
     );
   }

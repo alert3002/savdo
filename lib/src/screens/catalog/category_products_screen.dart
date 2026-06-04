@@ -29,7 +29,7 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
     crossAxisCount: 2,
     crossAxisSpacing: 6,
     mainAxisSpacing: 6,
-    childAspectRatio: 0.58,
+    childAspectRatio: 0.64,
   );
 
   String _ordering = '-created_at';
@@ -272,7 +272,7 @@ class _ProductsSkeletonGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 6,
         mainAxisSpacing: 6,
-        childAspectRatio: 0.58,
+        childAspectRatio: 0.64,
       ),
       itemBuilder: (context, index) {
         return ClipRRect(

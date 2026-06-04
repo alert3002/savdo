@@ -9,6 +9,7 @@ import '../../features/categories/category_item.dart';
 import '../../features/categories/category_navigation.dart';
 import '../../features/products/product_summary.dart';
 import '../../features/products/products_controller.dart';
+import '../../features/products/products_list_cache.dart';
 import '../../features/products/product_grid_card.dart';
 import '../../features/search/product_search_sheet.dart';
 import '../../features/slider/slider_controller.dart';
@@ -38,6 +39,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   bool _productsLoading = true;
   bool _loadingMore = false;
   Object? _productsError;
+  int? _totalCount;
 
   @override
   void initState() {
@@ -56,6 +58,10 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   }
 
   Future<void> _reloadProducts() async {
+    final filter = ref.read(productsFilterProvider);
+    if (filter.categorySlug == null || filter.categorySlug!.isEmpty) {
+      ProductsListCache.clear();
+    }
     setState(() {
       _items = [];
       _page = 1;
@@ -82,6 +88,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         _items = result.items;
         _page = 1;
         _hasMore = result.hasNext;
+        _totalCount = result.totalCount;
         _productsLoading = false;
         _productsError = null;
       });
@@ -112,6 +119,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         _page = nextPage;
         _items = [..._items, ...result.items];
         _hasMore = result.hasNext;
+        _totalCount = result.totalCount ?? _totalCount;
         _loadingMore = false;
       });
     } catch (e) {
@@ -213,18 +221,43 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
               )
             else if (isLoading || _productsLoading)
               const _ShopSkeletonGrid()
-            else
+            else ...[
               _ProductsGrid(items: _items),
-            const SizedBox(height: 14),
-            if (!isLoading && !_productsLoading && _productsError == null && _hasMore)
-              Center(
-                child: FilledButton.tonal(
+              if (_totalCount != null && _totalCount! > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Показано ${_items.length} из $_totalCount',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.65),
+                        ),
+                  ),
+                ),
+            ],
+            const SizedBox(height: 12),
+            if (!isLoading &&
+                !_productsLoading &&
+                _productsError == null &&
+                _hasMore &&
+                _items.isNotEmpty)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
                   onPressed: _loadingMore ? null : _loadMore,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                   child: _loadingMore
                       ? const SizedBox(
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text('Загрузить ещё'),
                 ),
@@ -261,7 +294,7 @@ class _ProductsGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 6,
         mainAxisSpacing: 6,
-        childAspectRatio: 0.58,
+        childAspectRatio: 0.64,
       ),
       itemBuilder: (context, index) => ProductGridCard(item: items[index]),
     );
@@ -851,7 +884,7 @@ class _ShopSkeletonGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 6,
         mainAxisSpacing: 6,
-        childAspectRatio: 0.58,
+        childAspectRatio: 0.64,
       ),
       itemBuilder: (context, index) {
         return const _ShopSkeletonCard();

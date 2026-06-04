@@ -1,5 +1,6 @@
 import '../../api/api_client.dart';
 import 'product_detail.dart';
+import 'products_list_cache.dart';
 import 'product_summary.dart';
 
 class ProductsPageResult {
@@ -24,6 +25,13 @@ class ProductsRepository {
     String? categorySlug,
     String ordering = '-created_at',
   }) async {
+    final cached = ProductsListCache.get(
+      page: page,
+      categorySlug: categorySlug,
+      ordering: ordering,
+    );
+    if (cached != null) return cached;
+
     final query = <String, String>{
       'page': '$page',
       'page_size': '$pageSize',
@@ -43,13 +51,29 @@ class ProductsRepository {
         : <ProductSummary>[];
 
     final next = json['next'];
-    final hasNext = next != null && next.toString().trim().isNotEmpty;
-    final count = json['count'];
-    return ProductsPageResult(
+    final countRaw = json['count'];
+    final totalCount = countRaw is int ? countRaw : int.tryParse('$countRaw');
+
+    var hasNext = next != null && next.toString().trim().isNotEmpty;
+    if (!hasNext && totalCount != null && totalCount > 0) {
+      hasNext = (page * pageSize) < totalCount;
+    }
+    if (!hasNext && items.length >= pageSize) {
+      hasNext = true;
+    }
+
+    final result = ProductsPageResult(
       items: items,
       hasNext: hasNext,
-      totalCount: count is int ? count : int.tryParse('$count'),
+      totalCount: totalCount,
     );
+    ProductsListCache.put(
+      page: page,
+      categorySlug: categorySlug,
+      ordering: ordering,
+      result: result,
+    );
+    return result;
   }
 
   Future<List<ProductSummary>> fetchProducts({
