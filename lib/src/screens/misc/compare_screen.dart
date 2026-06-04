@@ -7,6 +7,7 @@ import '../../features/products/product_engagement_controller.dart';
 import '../../features/products/products_controller.dart';
 import '../../routing/app_routes.dart';
 import '../../theme/grass_colors.dart';
+import '../../ui/grass_cached_network_image.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 
 class CompareScreen extends ConsumerWidget {
@@ -305,10 +306,13 @@ class _CompareTable extends StatelessWidget {
           aspectRatio: 1.35,
           child: ColoredBox(
             color: GrassColors.productImageBackground,
-            child: Image.network(
-              url,
+            child: GrassCachedNetworkImage(
+              url: url,
+              width: 200,
+              height: 150,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Center(
+              maxCacheSide: 500,
+              errorWidget: Center(
                 child: Icon(Icons.broken_image_outlined, color: scheme.onSurface.withValues(alpha: 0.45)),
               ),
               loadingBuilder: (context, child, progress) {

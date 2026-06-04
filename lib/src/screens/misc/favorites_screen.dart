@@ -6,6 +6,7 @@ import '../../features/products/product_engagement_controller.dart';
 import '../../features/products/products_controller.dart';
 import '../../routing/app_routes.dart';
 import '../../theme/grass_colors.dart';
+import '../../ui/grass_cached_network_image.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 
 class FavoritesScreen extends ConsumerWidget {
@@ -94,10 +95,13 @@ class _FavoriteProductTile extends ConsumerWidget {
                   width: 62,
                   height: 62,
                   child: (p.primaryImage != null && p.primaryImage!.isNotEmpty)
-                      ? Image.network(
-                          p.primaryImage!,
+                      ? GrassCachedNetworkImage(
+                          url: p.primaryImage!,
+                          width: 62,
+                          height: 62,
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Icon(
+                          maxCacheSide: 200,
+                          errorWidget: Icon(
                             Icons.image_not_supported_outlined,
                             color: scheme.primary,
                           ),

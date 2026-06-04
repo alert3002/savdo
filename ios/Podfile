@@ -2,6 +2,7 @@ platform :ios, '15.0'
 
 # Disable CocoaPods analytics to speed up Flutter CI builds.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+install! 'cocoapods', warn_for_unused_master_specs_repo: false
 
 project 'Runner', {
   'Debug' => :debug,

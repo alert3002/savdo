@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../routing/app_routes.dart';
 import '../../theme/grass_colors.dart';
+import '../../ui/grass_cached_network_image.dart';
 import '../products/product_summary.dart';
 import 'product_search_controller.dart';
 
@@ -178,13 +179,14 @@ class _ProductRow extends StatelessWidget {
                   child: item.primaryImage != null && item.primaryImage!.isNotEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(4),
-                          child: Image.network(
-                            item.primaryImage!,
+                          child: GrassCachedNetworkImage(
+                            url: item.primaryImage!,
                             fit: BoxFit.contain,
                             alignment: Alignment.center,
                             width: 48,
                             height: 64,
-                            errorBuilder: (context, error, stackTrace) => Icon(
+                            maxCacheSide: 200,
+                            errorWidget: Icon(
                               Icons.local_car_wash_outlined,
                               color: scheme.primary,
                             ),

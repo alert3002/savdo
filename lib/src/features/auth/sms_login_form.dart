@@ -164,9 +164,16 @@ class _SmsLoginFormState extends ConsumerState<SmsLoginForm> {
         if (map['otp_code'] is List && (map['otp_code'] as List).isNotEmpty) {
           message = (map['otp_code'] as List).first.toString();
         }
+        if (map['phone'] is String) message = map['phone'] as String;
+        if (map['phone'] is List && (map['phone'] as List).isNotEmpty) {
+          message = (map['phone'] as List).first.toString();
+        }
       } catch (_) {}
 
       final lower = message.toLowerCase();
+      if (lower.contains('international format') || lower.contains('формат номера')) {
+        return 'Неверный номер. Введите 9 цифр (например 927203002).';
+      }
       if (lower.contains('incorrect otp') || lower.contains('неверный код')) {
         return 'Неверный код. Проверьте и попробуйте снова.';
       }

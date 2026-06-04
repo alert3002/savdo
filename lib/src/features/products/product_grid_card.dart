@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'product_engagement_controller.dart';
 import '../../routing/app_routes.dart';
 import '../../theme/grass_colors.dart';
+import '../../ui/grass_cached_network_image.dart';
 import 'product_summary.dart';
 
 /// Карточка маҳсулот дар шабака (мағоза, каталог).
@@ -58,11 +59,14 @@ class ProductGridCard extends ConsumerWidget {
                     Positioned.fill(
                       child: Center(
                         child: item.primaryImage != null && item.primaryImage!.isNotEmpty
-                            ? Image.network(
-                                item.primaryImage!,
+                            ? GrassCachedNetworkImage(
+                                url: item.primaryImage!,
+                                width: 200,
+                                height: 168,
                                 fit: BoxFit.contain,
                                 alignment: Alignment.center,
-                                errorBuilder: (context, error, stackTrace) => Icon(
+                                maxCacheSide: 512,
+                                errorWidget: Icon(
                                   Icons.local_car_wash_outlined,
                                   size: 46,
                                   color: scheme.primary,

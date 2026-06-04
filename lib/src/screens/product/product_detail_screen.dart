@@ -9,6 +9,7 @@ import '../../features/products/product_engagement_controller.dart';
 import '../../features/products/products_controller.dart';
 import '../../features/products/variant_formatting.dart';
 import '../../theme/grass_colors.dart';
+import '../../ui/grass_cached_network_image.dart';
 import '../../utils/text_utils.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -741,11 +742,14 @@ class _InlineZoomableImage extends StatelessWidget {
       clipBehavior: Clip.none,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Image.network(
-          imageUrl,
+        child: GrassCachedNetworkImage(
+          url: imageUrl,
+          width: MediaQuery.sizeOf(context).width,
+          height: 320,
           fit: BoxFit.contain,
           alignment: Alignment.center,
-          errorBuilder: (context, error, stackTrace) => ColoredBox(
+          maxCacheSide: 1024,
+          errorWidget: ColoredBox(
             color: GrassColors.productImageBackground,
             child: errorIcon,
           ),
@@ -907,10 +911,13 @@ class _FullscreenZoomableImageState extends State<_FullscreenZoomableImage> {
         child: SizedBox(
           width: widget.viewportWidth,
           height: widget.viewportHeight,
-          child: Image.network(
-            widget.imageUrl,
+          child: GrassCachedNetworkImage(
+            url: widget.imageUrl,
+            width: widget.viewportWidth,
+            height: widget.viewportHeight,
             fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Icon(
+            maxCacheSide: 1200,
+            errorWidget: const Icon(
               Icons.broken_image_outlined,
               size: 64,
               color: Colors.white70,

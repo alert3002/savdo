@@ -17,6 +17,7 @@ import '../../theme/grass_colors.dart';
 import '../../ui/category_image_fallback.dart';
 import '../../ui/error_retry.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
+import '../../ui/grass_cached_network_image.dart';
 import '../../ui/skeleton.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
@@ -341,11 +342,13 @@ class _CategoryGridBody extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   if (hasImage)
-                    Image.network(
-                      imageUrl,
+                    GrassCachedNetworkImage(
+                      url: imageUrl,
+                      width: 120,
+                      height: 120,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const CategoryImageFallback(),
+                      maxCacheSide: 400,
+                      errorWidget: const CategoryImageFallback(),
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
                         return const CategoryImageFallback(compact: true);
@@ -727,11 +730,13 @@ class _PromoSliderState extends ConsumerState<_PromoSlider> {
                         children: [
                           if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
                             Positioned.fill(
-                              child: Image.network(
-                                item.imageUrl!,
+                              child: GrassCachedNetworkImage(
+                                url: item.imageUrl!,
+                                width: MediaQuery.sizeOf(context).width * 0.92,
+                                height: 156,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const SizedBox.shrink(),
+                                maxCacheSide: 800,
+                                errorWidget: const SizedBox.shrink(),
                               ),
                             )
                           else

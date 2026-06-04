@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../api/api_client.dart';
+import '../../utils/phone_utils.dart';
 import 'auth_models.dart';
 
 const _kAccess = 'grass_jwt_access';
@@ -52,7 +53,10 @@ class AuthRepository {
   }) async {
     final body = await _api.postJson(
       '/api/v1/auth/token/',
-      body: {'phone': phone.trim(), 'password': password},
+      body: {
+        'phone': normalizeTajikPhoneForApi(phone),
+        'password': password,
+      },
     );
     final access = body['access'] as String?;
     final refresh = body['refresh'] as String?;
@@ -110,7 +114,7 @@ class AuthRepository {
 
   /// SMS OTP барои воридшавӣ.
   Future<bool> requestLoginOtp({required String phone}) async {
-    final normalized = phone.trim();
+    final normalized = normalizeTajikPhoneForApi(phone);
     final json = await _api.postJson(
       '/api/v1/users/request-login-otp/',
       body: {'phone': normalized},
@@ -125,7 +129,7 @@ class AuthRepository {
     required String otpCode,
     String? referralCode,
   }) async {
-    final normalized = phone.trim();
+    final normalized = normalizeTajikPhoneForApi(phone);
     final code = otpCode.trim();
 
     final tokens = await _api.postJson(

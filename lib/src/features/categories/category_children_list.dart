@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/grass_colors.dart';
 import '../../ui/category_image_fallback.dart';
+import '../../ui/grass_cached_network_image.dart';
 import 'category_item.dart';
 
 /// Рӯйхати подкатегорияҳо (на grid).
@@ -91,16 +92,16 @@ class _CategoryChildListTileState extends State<_CategoryChildListTile> {
                     width: 56,
                     height: 56,
                     child: _hasPhoto
-                        ? Image.network(
-                            c.imageUrl!,
+                        ? GrassCachedNetworkImage(
+                            url: c.imageUrl!,
+                            width: 56,
+                            height: 56,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (!mounted || _imageFailed) return;
-                                setState(() => _imageFailed = true);
-                              });
-                              return const CategoryImageFallback(compact: true);
+                            maxCacheSide: 200,
+                            onError: () {
+                              if (mounted) setState(() => _imageFailed = true);
                             },
+                            errorWidget: const CategoryImageFallback(compact: true),
                           )
                         : const CategoryImageFallback(compact: true),
                   ),

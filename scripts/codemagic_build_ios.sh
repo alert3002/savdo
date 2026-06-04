@@ -34,9 +34,17 @@ cd ..
 # Sync пеш аз archive
 cd ios && pod install && cd ..
 
-# Имзо (агар дар Codemagic ios_signing танзим шуда бошад)
+# Имзо — бояд дар codemagic.yaml: integrations.app_store_connect + ios_signing
 if command -v xcode-project >/dev/null 2>&1; then
   xcode-project use-profiles
+else
+  echo "WARN: xcode-project not found, signing may fail"
+fi
+
+if ! security find-identity -v -p codesigning 2>/dev/null | grep -qE "Apple (Distribution|Development)"; then
+  echo "ERROR: No Apple code signing certificate in keychain."
+  echo "See ios/CODEMAGIC_SIGNING.md — add App Store Connect API key in Codemagic."
+  exit 1
 fi
 
 if [ -f /Users/builder/export_options.plist ]; then

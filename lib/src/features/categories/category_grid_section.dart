@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/grass_colors.dart';
 import '../../ui/category_image_fallback.dart';
+import '../../ui/grass_cached_network_image.dart';
 import '../../ui/skeleton.dart';
 import 'category_item.dart';
 
@@ -116,15 +117,19 @@ class _CategoryGridTileState extends State<CategoryGridTile> {
               fit: StackFit.expand,
               children: [
                 if (_hasPhoto)
-                  Image.network(
-                    widget.imageUrl!,
+                  GrassCachedNetworkImage(
+                    url: widget.imageUrl!,
+                    width: 120,
+                    height: 120,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!mounted || _imageFailed) return;
-                        setState(() => _imageFailed = true);
-                      });
-                      return const CategoryImageFallback();
+                    maxCacheSide: 400,
+                    onError: () {
+                      if (mounted) setState(() => _imageFailed = true);
+                    },
+                    errorWidget: const CategoryImageFallback(),
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const CategoryImageFallback(compact: true);
                     },
                   )
                 else

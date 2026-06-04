@@ -11,6 +11,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Больше картинок в RAM-кэше — повторное открытие экранов без мигания.
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 250
+    ..maximumSizeBytes = 120 << 20;
+
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(const ProviderScope(child: GrassApp()));
