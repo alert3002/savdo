@@ -9,7 +9,9 @@ import '../../features/categories/category_item.dart';
 import '../../features/categories/category_navigation.dart';
 import '../../features/products/product_summary.dart';
 import '../../features/products/products_controller.dart';
-import '../../features/products/products_list_cache.dart';
+import '../../api/api_client.dart';
+import '../../features/products/products_paged_chunks.dart';
+import '../../features/products/products_repository.dart' show ProductsRepository;
 import '../../features/products/product_grid_card.dart';
 import '../../features/search/product_search_sheet.dart';
 import '../../features/slider/slider_controller.dart';
@@ -29,11 +31,10 @@ class ShopScreen extends ConsumerStatefulWidget {
 }
 
 class _ShopScreenState extends ConsumerState<ShopScreen> {
+  /// 2 сутун × 10 қатор = 20 товар дар саҳифаи аввал.
   static const _pageSize = 20;
 
-  bool _isLoading = true;
-  Timer? _loadingTimer;
-  List<ProductSummary> _items = [];
+  final _pagedChunks = ProductsPagedChunks(pageSize: _pageSize);
   int _page = 1;
   bool _hasMore = true;
   bool _productsLoading = true;
@@ -44,26 +45,17 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   @override
   void initState() {
     super.initState();
-    _loadingTimer = Timer(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-    });
     _loadFirstPage();
-  }
-
-  @override
-  void dispose() {
-    _loadingTimer?.cancel();
-    super.dispose();
   }
 
   Future<void> _reloadProducts() async {
     final filter = ref.read(productsFilterProvider);
-    if (filter.categorySlug == null || filter.categorySlug!.isEmpty) {
-      ProductsListCache.clear();
-    }
+    ProductsRepository.clearListCache(
+      categorySlug: filter.categorySlug,
+      ordering: filter.ordering,
+    );
     setState(() {
-      _items = [];
+      _pagedChunks.reset();
       _page = 1;
       _hasMore = true;
       _productsLoading = true;
@@ -85,10 +77,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _items = result.items;
+        _pagedChunks.setFirstPage(result);
         _page = 1;
-        _hasMore = result.hasNext;
         _totalCount = result.totalCount;
+        _hasMore = _pagedChunks.hasMore(
+          totalCount: _totalCount,
+          apiHasNext: result.hasNext,
+        );
         _productsLoading = false;
         _productsError = null;
       });
@@ -115,19 +110,29 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         ordering: filter.ordering,
       );
       if (!mounted) return;
+      final batch = _pagedChunks.absorbPage(result);
       setState(() {
-        _page = nextPage;
-        _items = [..._items, ...result.items];
-        _hasMore = result.hasNext;
+        if (batch.isNotEmpty) _page = nextPage;
         _totalCount = result.totalCount ?? _totalCount;
+        _hasMore = batch.isNotEmpty &&
+            _pagedChunks.hasMore(
+              totalCount: _totalCount,
+              apiHasNext: result.hasNext,
+            );
         _loadingMore = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingMore = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось загрузить: $e')),
-      );
+      final isLastPage = e is ApiException && e.statusCode == 404;
+      setState(() {
+        _loadingMore = false;
+        if (isLastPage) _hasMore = false;
+      });
+      if (!isLastPage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось загрузить: $e')),
+        );
+      }
     }
   }
 
@@ -151,7 +156,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       }
     });
 
-    final isLoading = _isLoading;
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
     final logo = isDark ? BrandAssets.logoWhiteHorizontal : BrandAssets.logoBlackHorizontal;
@@ -188,7 +192,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             ],
           ),
         ),
-        child: ListView(
+        child: RefreshIndicator(
+          onRefresh: _reloadProducts,
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
           children: [
             const _PromoSlider(),
@@ -219,52 +225,54 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 message: friendlyErrorMessage(_productsError!),
                 onRetry: _reloadProducts,
               )
-            else if (isLoading || _productsLoading)
+            else if (_productsLoading)
               const _ShopSkeletonGrid()
             else ...[
-              _ProductsGrid(items: _items),
-              if (_totalCount != null && _totalCount! > 0)
+              for (var i = 0; i < _pagedChunks.chunks.length; i++) ...[
+                if (i > 0) const SizedBox(height: 10),
+                _ProductsGrid(items: _pagedChunks.chunks[i]),
+              ],
+              if (_totalCount != null && _totalCount! > _pagedChunks.loadedCount)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 10),
                   child: Text(
-                    'Показано ${_items.length} из $_totalCount',
+                    'Показано ${_pagedChunks.loadedCount} из $_totalCount',
+                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurface.withValues(alpha: 0.65),
                         ),
                   ),
                 ),
-            ],
-            const SizedBox(height: 12),
-            if (!isLoading &&
-                !_productsLoading &&
-                _productsError == null &&
-                _hasMore &&
-                _items.isNotEmpty)
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _loadingMore ? null : _loadMore,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+              if (_hasMore && !_pagedChunks.isEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _loadingMore ? null : _loadMore,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
+                    child: _loadingMore
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Загрузить ещё'),
                   ),
-                  child: _loadingMore
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Загрузить ещё'),
                 ),
-              ),
+              ],
+            ],
             const SizedBox(height: 18),
             const _MotivationBlocks(),
           ],
+        ),
         ),
       ),
     );
@@ -879,7 +887,7 @@ class _ShopSkeletonGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 8,
+      itemCount: 20,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 6,

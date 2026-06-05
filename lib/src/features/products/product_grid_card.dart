@@ -14,6 +14,8 @@ class ProductGridCard extends ConsumerWidget {
 
   final ProductSummary item;
 
+  static const double _variantRowHeight = 17;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
@@ -46,136 +48,140 @@ class ProductGridCard extends ConsumerWidget {
           ),
           child: ClipRRect(
             borderRadius: borderRadius,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              Container(
-                width: double.infinity,
-                height: 192,
-                color: GrassColors.productImageBackground,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Center(
-                        child: item.primaryImage != null && item.primaryImage!.isNotEmpty
-                            ? GrassCachedNetworkImage(
-                                url: item.primaryImage!,
-                                width: 220,
-                                height: 192,
-                                fit: BoxFit.contain,
-                                alignment: Alignment.center,
-                                maxCacheSide: 512,
-                                errorWidget: Icon(
-                                  Icons.local_car_wash_outlined,
-                                  size: 46,
-                                  color: scheme.primary,
-                                ),
-                              )
-                            : Icon(
-                                Icons.local_car_wash_outlined,
-                                size: 46,
-                                color: scheme.primary,
-                              ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 11,
+                  child: ColoredBox(
+                    color: GrassColors.productImageBackground,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      child: Stack(
+                        fit: StackFit.expand,
                         children: [
-                          _ActionCircleButton(
-                            tooltip: 'Избранное',
-                            icon: isFav ? Icons.favorite : Icons.favorite_border,
-                            iconColor: isFav ? scheme.error : Colors.white,
-                            onTap: () =>
-                                ref.read(favoriteProductSlugsProvider.notifier).toggle(item.slug),
+                          Center(
+                            child: item.primaryImage != null && item.primaryImage!.isNotEmpty
+                                ? GrassCachedNetworkImage(
+                                    url: item.primaryImage!,
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.center,
+                                    maxCacheSide: 512,
+                                    errorWidget: Icon(
+                                      Icons.local_car_wash_outlined,
+                                      size: 46,
+                                      color: scheme.primary,
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.local_car_wash_outlined,
+                                    size: 46,
+                                    color: scheme.primary,
+                                  ),
                           ),
-                          const SizedBox(width: 6),
-                          _ActionCircleButton(
-                            tooltip: 'Сравнение',
-                            icon: Icons.compare_arrows,
-                            iconColor: inCompare ? scheme.primary : Colors.white,
-                            onTap: () async {
-                              final ok = await ref
-                                  .read(compareProductSlugsProvider.notifier)
-                                  .toggle(item.slug);
-                              if (!context.mounted || ok) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content:
-                                      Text('В сравнении не более $kCompareMaxItems товаров'),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _ActionCircleButton(
+                                  tooltip: 'Избранное',
+                                  icon: isFav ? Icons.favorite : Icons.favorite_border,
+                                  iconColor: isFav ? scheme.error : Colors.white,
+                                  onTap: () => ref
+                                      .read(favoriteProductSlugsProvider.notifier)
+                                      .toggle(item.slug),
                                 ),
-                              );
-                            },
+                                const SizedBox(width: 6),
+                                _ActionCircleButton(
+                                  tooltip: 'Сравнение',
+                                  icon: Icons.compare_arrows,
+                                  iconColor: inCompare ? scheme.primary : Colors.white,
+                                  onTap: () async {
+                                    final ok = await ref
+                                        .read(compareProductSlugsProvider.notifier)
+                                        .toggle(item.slug);
+                                    if (!context.mounted || ok) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'В сравнении не более $kCompareMaxItems товаров',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        height: 1.15,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      item.categoryName ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.70),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                Expanded(
+                  flex: 9,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _PriceBlock(item: item),
-                        ),
-                        IconButton.filledTonal(
-                          onPressed: () =>
-                              context.push(AppRoutes.productBySlug(item.slug)),
-                          icon: const Icon(Icons.add, size: 16),
-                          tooltip: 'Открыть',
-                          visualDensity: VisualDensity.compact,
-                          style: IconButton.styleFrom(
-                            minimumSize: const Size(32, 32),
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                        Text(
+                          item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodyLarge?.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
                           ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          item.categoryName ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.70),
+                          ),
+                        ),
+                        const Spacer(),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: _PriceBlock(item: item),
+                            ),
+                            IconButton.filledTonal(
+                              onPressed: () => context.push(AppRoutes.productBySlug(item.slug)),
+                              icon: const Icon(Icons.add, size: 16),
+                              tooltip: 'Открыть',
+                              visualDensity: VisualDensity.compact,
+                              style: IconButton.styleFrom(
+                                minimumSize: const Size(32, 32),
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          height: _variantRowHeight,
+                          child: item.hasVariants
+                              ? Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _VariantHint(item: item),
+                                )
+                              : null,
                         ),
                       ],
                     ),
-                    if (item.hasVariants) ...[
-                      const SizedBox(height: 3),
-                      _VariantHint(item: item),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
@@ -241,8 +247,6 @@ class _VariantHint extends StatelessWidget {
         _pickAttr('rang') ??
         _pickAttr('color');
 
-    // If key names differ between API responses (home/category vs detail),
-    // try to detect a "color-like" value by content.
     if (color == null || color.trim().isEmpty) {
       const colorNeedle = [
         'черн',
@@ -283,11 +287,9 @@ class _VariantHint extends StatelessWidget {
 
     List<String> splitTokens(String raw) {
       return raw
-          // Support separators like: "black/white", "black; white", "black, white", "red и white"
           .split(RegExp(r'[,\n;|/]+|\s+и\s+|\s*&\s+'))
           .map((e) {
             var t = e.trim();
-            // Remove possible prefixes like "Цвет: " or "Color-".
             t = t.replaceAll(RegExp(r'^\s*.*?:\s*'), '');
             return t.trim();
           })
@@ -299,7 +301,6 @@ class _VariantHint extends StatelessWidget {
       var t = token.trim();
       if (t.startsWith('#')) t = t.substring(1);
       if (t.length == 3) {
-        // RGB -> RRGGBB
         t = '${t[0]}${t[0]}${t[1]}${t[1]}${t[2]}${t[2]}';
       }
       if (t.length != 6) return null;
@@ -327,8 +328,6 @@ class _VariantHint extends StatelessWidget {
       return scheme.onSurface.withValues(alpha: 0.22);
     }
 
-    // Prefer colors coming from variants (list endpoints). This ensures
-    // that "Варианты: N" does not show when actual color values exist.
     if (variantColors.isNotEmpty) {
       final shown = variantColors.take(5).toList(growable: false);
       return Row(
@@ -376,14 +375,16 @@ class _VariantHint extends StatelessWidget {
                 ),
               ),
             if (size != null)
-              Text(
-                'Размер: $size',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: (textTheme.bodySmall ?? const TextStyle()).copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurface.withValues(alpha: 0.70),
+              Flexible(
+                child: Text(
+                  'Размер: $size',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: (textTheme.bodySmall ?? const TextStyle()).copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface.withValues(alpha: 0.70),
+                  ),
                 ),
               ),
           ],
@@ -451,51 +452,62 @@ class _PriceBlock extends StatelessWidget {
 
     final hasPromo = (item.promoPrice != null && item.promoPrice!.isNotEmpty);
     if (!hasPromo) {
-      return _priceText(
-        context,
-        value: item.effectivePrice,
-        currency: item.currency,
-        style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w900) ??
-            const TextStyle(fontWeight: FontWeight.w900),
-        currencyFontSize: 11,
-        currencyOpacity: 0.65,
+      return SizedBox(
+        height: 20,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: _priceText(
+            context,
+            value: item.effectivePrice,
+            currency: item.currency,
+            style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w900) ??
+                const TextStyle(fontWeight: FontWeight.w900),
+            currencyFontSize: 11,
+            currencyOpacity: 0.65,
+          ),
+        ),
       );
     }
 
-    return Row(
-      children: [
-        Flexible(
-          child: _priceText(
-            context,
-            value: item.price,
-            currency: item.currency,
-            style: (textTheme.bodySmall ?? const TextStyle()).copyWith(
-              fontSize: 11,
-              color: scheme.onSurface.withValues(alpha: 0.42),
-              decoration: TextDecoration.lineThrough,
-              decorationThickness: 2,
-            ),
-            currencyFontSize: 10,
-            currencyOpacity: 0.35,
-          ),
-        ),
-        const SizedBox(width: 8),
-        _priceText(
-          context,
-          value: item.promoPrice!,
-          currency: item.currency,
-          style: textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: scheme.onSurface.withValues(alpha: 0.98),
-              ) ??
-              TextStyle(
-                fontWeight: FontWeight.w900,
-                color: scheme.onSurface.withValues(alpha: 0.98),
+    return SizedBox(
+      height: 20,
+      child: Row(
+        children: [
+          Flexible(
+            child: _priceText(
+              context,
+              value: item.price,
+              currency: item.currency,
+              style: (textTheme.bodySmall ?? const TextStyle()).copyWith(
+                fontSize: 11,
+                color: scheme.onSurface.withValues(alpha: 0.42),
+                decoration: TextDecoration.lineThrough,
+                decorationThickness: 2,
               ),
-          currencyFontSize: 11,
-          currencyOpacity: 0.62,
-        ),
-      ],
+              currencyFontSize: 10,
+              currencyOpacity: 0.35,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: _priceText(
+              context,
+              value: item.promoPrice!,
+              currency: item.currency,
+              style: textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: scheme.onSurface.withValues(alpha: 0.98),
+                  ) ??
+                  TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: scheme.onSurface.withValues(alpha: 0.98),
+                  ),
+              currencyFontSize: 11,
+              currencyOpacity: 0.62,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

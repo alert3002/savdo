@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/products/product_grid_card.dart';
-import '../../features/products/product_summary.dart';
+import '../../api/api_client.dart';
 import '../../features/products/products_controller.dart';
+import '../../features/products/products_paged_chunks.dart';
+import '../../features/products/products_repository.dart' show ProductsRepository;
 import '../../ui/error_retry.dart';
 import '../../ui/navigation/shop_layer_app_bar.dart';
 import '../../ui/skeleton.dart';
@@ -33,8 +35,9 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
   );
 
   String _ordering = '-created_at';
-  List<ProductSummary> _items = [];
+  final _pagedChunks = ProductsPagedChunks(pageSize: _pageSize);
   int _page = 1;
+  int? _totalCount;
   bool _hasMore = true;
   bool _initialLoading = true;
   bool _loadingMore = false;
@@ -55,13 +58,18 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
   }
 
   Future<void> _reload() async {
+    ProductsRepository.clearListCache(
+      categorySlug: widget.categorySlug,
+      ordering: _ordering,
+    );
     setState(() {
-      _items = [];
+      _pagedChunks.reset();
       _page = 1;
       _hasMore = true;
       _initialLoading = true;
       _loadingMore = false;
       _error = null;
+      _totalCount = null;
     });
     await _loadFirstPage();
   }
@@ -77,9 +85,13 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
       );
       if (!mounted) return;
       setState(() {
-        _items = result.items;
+        _pagedChunks.setFirstPage(result);
         _page = 1;
-        _hasMore = result.hasNext;
+        _totalCount = result.totalCount;
+        _hasMore = _pagedChunks.hasMore(
+          totalCount: _totalCount,
+          apiHasNext: result.hasNext,
+        );
         _initialLoading = false;
         _error = null;
       });
@@ -105,18 +117,29 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
         ordering: _ordering,
       );
       if (!mounted) return;
+      final batch = _pagedChunks.absorbPage(result);
       setState(() {
-        _page = nextPage;
-        _items = [..._items, ...result.items];
-        _hasMore = result.hasNext;
+        if (batch.isNotEmpty) _page = nextPage;
+        _totalCount = result.totalCount ?? _totalCount;
+        _hasMore = batch.isNotEmpty &&
+            _pagedChunks.hasMore(
+              totalCount: _totalCount,
+              apiHasNext: result.hasNext,
+            );
         _loadingMore = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingMore = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось загрузить: $e')),
-      );
+      final isLastPage = e is ApiException && e.statusCode == 404;
+      setState(() {
+        _loadingMore = false;
+        if (isLastPage) _hasMore = false;
+      });
+      if (!isLastPage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось загрузить: $e')),
+        );
+      }
     }
   }
 
@@ -189,7 +212,7 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
                   message: friendlyErrorMessage(_error!),
                   onRetry: _reload,
                 )
-              else if (_items.isEmpty)
+              else if (_pagedChunks.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Center(
@@ -202,25 +225,48 @@ class _CategoryProductsScreenState extends ConsumerState<CategoryProductsScreen>
                   ),
                 )
               else ...[
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _items.length,
-                  gridDelegate: _gridDelegate,
-                  itemBuilder: (context, index) {
-                    return ProductGridCard(item: _items[index]);
-                  },
-                ),
+                for (var i = 0; i < _pagedChunks.chunks.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 10),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _pagedChunks.chunks[i].length,
+                    gridDelegate: _gridDelegate,
+                    itemBuilder: (context, index) {
+                      return ProductGridCard(item: _pagedChunks.chunks[i][index]);
+                    },
+                  ),
+                ],
+                if (_totalCount != null && _totalCount! > _pagedChunks.loadedCount) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Показано ${_pagedChunks.loadedCount} из $_totalCount',
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
-                if (_hasMore)
-                  Center(
-                    child: FilledButton.tonal(
+                if (_hasMore && !_pagedChunks.isEmpty)
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
                       onPressed: _loadingMore ? null : _loadMore,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                       child: _loadingMore
                           ? const SizedBox(
                               width: 22,
                               height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Загрузить ещё'),
                     ),
