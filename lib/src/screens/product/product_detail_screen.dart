@@ -634,8 +634,9 @@ class _ProductImageGalleryState extends State<_ProductImageGallery> {
     final images = widget.images;
     final pageCount = images.isEmpty ? 1 : images.length;
 
-    return Container(
-      height: 360,
+    return AspectRatio(
+      aspectRatio: 1,
+      child: DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         color: GrassColors.productImageBackground,
@@ -721,6 +722,7 @@ class _ProductImageGalleryState extends State<_ProductImageGallery> {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -739,20 +741,27 @@ class _InlineZoomableImage extends StatelessWidget {
     return InteractiveViewer(
       minScale: 1,
       maxScale: 4,
-      clipBehavior: Clip.none,
+      clipBehavior: Clip.hardEdge,
+      boundaryMargin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: GrassCachedNetworkImage(
-          url: imageUrl,
-          width: MediaQuery.sizeOf(context).width,
-          height: 320,
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          maxCacheSide: 1024,
-          errorWidget: ColoredBox(
-            color: GrassColors.productImageBackground,
-            child: errorIcon,
-          ),
+        padding: const EdgeInsets.all(12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Center(
+              child: GrassCachedNetworkImage(
+                url: imageUrl,
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                maxCacheSide: 1024,
+                errorWidget: ColoredBox(
+                  color: GrassColors.productImageBackground,
+                  child: Center(child: errorIcon),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -908,14 +917,13 @@ class _FullscreenZoomableImageState extends State<_FullscreenZoomableImage> {
         panEnabled: true,
         scaleEnabled: true,
         boundaryMargin: const EdgeInsets.all(48),
-        child: SizedBox(
-          width: widget.viewportWidth,
-          height: widget.viewportHeight,
+        child: Center(
           child: GrassCachedNetworkImage(
             url: widget.imageUrl,
             width: widget.viewportWidth,
             height: widget.viewportHeight,
             fit: BoxFit.contain,
+            alignment: Alignment.center,
             maxCacheSide: 1200,
             errorWidget: const Icon(
               Icons.broken_image_outlined,

@@ -32,16 +32,31 @@ class GrassCachedNetworkImage extends StatelessWidget {
   final int maxCacheSide;
   final Duration fadeInDuration;
 
-  int? _memSide(BuildContext context, double? logical) {
-    if (logical == null || !logical.isFinite || logical <= 0) return null;
+  int? _memSide(BuildContext context, double logical) {
+    if (!logical.isFinite || logical <= 0) return null;
     final px = (logical * MediaQuery.devicePixelRatioOf(context)).round();
     return px.clamp(1, maxCacheSide);
   }
 
+  /// Танҳо як тараф — вагарна decode ҳарду тарафро мезанад ва сурат дароз мешавад.
+  ({int? width, int? height}) _memCacheSize(BuildContext context) {
+    if (width == null && height == null) return (width: null, height: null);
+
+    if (width != null && height != null) {
+      if (width! >= height!) {
+        return (width: _memSide(context, width!), height: null);
+      }
+      return (width: null, height: _memSide(context, height!));
+    }
+    if (width != null) {
+      return (width: _memSide(context, width!), height: null);
+    }
+    return (width: null, height: _memSide(context, height!));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final memW = _memSide(context, width ?? height);
-    final memH = _memSide(context, height ?? width);
+    final mem = _memCacheSize(context);
 
     return CachedNetworkImage(
       imageUrl: url,
@@ -51,8 +66,8 @@ class GrassCachedNetworkImage extends StatelessWidget {
       fit: fit,
       alignment: alignment,
       filterQuality: filterQuality,
-      memCacheWidth: memW,
-      memCacheHeight: memH,
+      memCacheWidth: mem.width,
+      memCacheHeight: mem.height,
       fadeInDuration: fadeInDuration,
       fadeOutDuration: Duration.zero,
       useOldImageOnUrlChange: true,
